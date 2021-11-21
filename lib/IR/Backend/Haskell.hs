@@ -11,9 +11,14 @@ import Control.Lens hiding (set)
 
 import IR.Syntax
 
-type Register = Map CName (Maybe CIntVal)
+newtype CAddr = CAddr Int deriving (Num, Eq, Show, Enum, Ord, PrintfArg) 
+
+type Memory   = Map CAddr (Maybe CIntVal)
+type NameMap  = Map CName CAddr
 data RuntimeState scopeLabel = RuntimeState  {
-     _register     :: Register
+     _register     :: Memory
+   , _nextFreeAddr :: CAddr
+   , _nameMap      :: NameMap
    , _mainModule   :: Module scopeLabel
    , _logger       :: [String]
    , _nextInstr    :: [CScope scopeLabel 'UnitTy]
@@ -22,21 +27,23 @@ makeLenses ''RuntimeState
 
 initialState :: Module scopeLabel -> RuntimeState scopeLabel
 initialState moduleProg = RuntimeState {
-     _register   = Map.empty 
-   , _mainModule = moduleProg
-   , _logger     = []
-   , _nextInstr  = []
+     _register     = Map.empty 
+   , _nextFreeAddr = 0
+   , _nameMap      = Map.empty
+   , _mainModule   = moduleProg
+   , _logger       = []
+   , _nextInstr    = []
 }
 
 
 data RuntimeException label
-    = UseAfterFree CName
-    | UsingUnassignedValue CName
-    | MemoryLeak [CName]
-    | Redeclaration CName
-    | DeallocatingUnallocated CName
-    | AssigningUndeclared CName
-    | UndefinedLabels [label]
+    = UseUnallocated CName            -- ^  something was freed and then used in an expression or never allocated at all
+    | UsingUnassignedValue CName      -- ^  something was allocated but not assigned and then used in an expression
+    | MemoryLeak [CAddr]              -- ^  something hasn't be freed at the end of program
+    -- | Redeclaration CName             -- ^  something was allocated twice
+    | DeallocatingUnallocated CName   -- ^  "free" was called on something that wasn't allocated before 
+    | AssigningUndeclared CName       -- ^  something was assigned to a name that hasn't been allocated before
+    | UndefinedLabels [label]         -- ^  there are jumps to labels not defined in modules 
     deriving (Show, Eq, Ord)
 
 newtype Runtime label a = Runtime {
@@ -89,9 +96,28 @@ withLabel label action = do
         action
         maybeScope
 
+withAddr 
+    :: (Ord label)
+    => CName
+    -> RuntimeException label
+    -> (CAddr -> Runtime label a)
+    -> Runtime label a
+withAddr name exception action = do
+    maybeAddr <- uses nameMap $ Map.lookup name
+    case maybeAddr of
+        Nothing   -> throwError exception
+        Just addr -> action addr
+
+
 writeToLog :: String -> Runtime label ()
 writeToLog line = modifying logger $ (line:)
 
+newAddr :: Runtime label CAddr
+newAddr = do
+    freeAddr <- use nextFreeAddr
+    modifying nextFreeAddr (+1)
+    modifying register $ Map.insert freeAddr Nothing
+    return freeAddr 
 
 whetherMember :: 
      CName 
@@ -99,7 +125,7 @@ whetherMember ::
   -> RuntimeException label
   -> Runtime label ()
 whetherMember name failIfIn errorType = do
-    isIn <- uses register $ Map.member name
+    isIn <- uses nameMap $ Map.member name
     when (isIn == failIfIn) $
         throwError errorType
 
@@ -123,22 +149,28 @@ runTillEnd = do
 runtime :: (Show label, Ord label) => CScope label 'UnitTy -> Runtime label () 
 runtime Pass = return ()
 runtime (Allocate name) = do
-    whetherMember name True (Redeclaration name)
     writeToLog $ printf "allocate %s" (show name)
-    modifying register $ Map.insert name Nothing
+    addr <- newAddr
+    modifying nameMap $ Map.insert name addr
 
-runtime (Free name) = do
-    whetherMember name False (DeallocatingUnallocated name)
-    writeToLog $ printf "free %s" (show name)
-    modifying register $ Map.delete name
+runtime (Free name) = 
+    withAddr name (DeallocatingUnallocated name) $ \addr -> do
+        writeToLog $ printf "free %s" (show name)
+        addrIsAllocated <- uses register $ Map.member addr
+        when (not addrIsAllocated) $ do
+            throwError $ DeallocatingUnallocated name
+        modifying register $ Map.delete addr
 
-runtime (Set name expr) = do
-    whetherMember name False (AssigningUndeclared name)
-    value <- evaluate expr
-    writeToLog $ printf "%s <- %s (= %s)" (show name) (show expr) (show value)
-    modifying register $ 
-        Map.insert name $
-        Just value
+
+
+runtime (Set name expr) = 
+    withAddr name (AssigningUndeclared name) $ \addr -> do
+        value <- evaluate expr
+        writeToLog $ printf "%s <- %s (= %s)" (show name) (show expr) (show value)
+        modifying register $ 
+            Map.insert addr $
+            Just value
+
 
 runtime (Jump label) = 
     withLabel label $ \scope -> do
@@ -158,14 +190,15 @@ runtime (JComp op a b label) = withLabel label $ \scope -> do
         assign nextInstr scope
 
 
-evaluate :: CScope label 'IntTy -> Runtime label CIntVal
-evaluate (Cst  val) = return val
-evaluate (Var  var) = do
-    maybeVal <- uses register $ Map.lookup var
-    case maybeVal of 
-        Just (Just x) -> return x
-        Just _ -> throwError (UsingUnassignedValue var)
-        _      -> throwError (UseAfterFree var)
+evaluate :: (Ord label) => CScope label 'IntTy -> Runtime label CIntVal
+evaluate (Cst  val)  = return val
+evaluate (Var  name) = 
+    withAddr name (UseUnallocated name)  $ \addr -> do
+        maybeVal <- uses register $ Map.lookup addr
+        case maybeVal of 
+            Just (Just x) -> return x
+            Just _ -> throwError (UsingUnassignedValue name)
+            _      -> throwError (UseUnallocated       name)
 
 evaluate (BinOp op expr1 expr2) = do
     result1 <- evaluate expr1

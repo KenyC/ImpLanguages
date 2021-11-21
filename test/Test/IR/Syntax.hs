@@ -4,10 +4,8 @@ import Data.Default
 import qualified Data.Map as Map
 import Test.Tasty
 import Test.Tasty.HUnit
-import Test.Tasty.QuickCheck
 
 import IR.Syntax
-import IR.Backend.Haskell
 
 
 allTests :: TestTree

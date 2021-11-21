@@ -1,12 +1,9 @@
 module Test.IR.Backend.Haskell where
 
 import Control.Lens
-import Control.Monad
-import Control.Monad.IO.Class
 import qualified Data.Map as Map
 import Test.Tasty
 import Test.Tasty.HUnit
-import Test.Tasty.QuickCheck
 
 import IR.Syntax
 import IR.Backend.Haskell
@@ -39,7 +36,7 @@ useAfterFreeTest = testCase "UseAfterFree" $ do
                 free b
 
             a = 0
-        compileAndRun program @?= Just (UseAfterFree a)
+        compileAndRun program @?= Just (UseUnallocated a)
 
 
 usingUnassignedValueTest :: TestTree
@@ -87,8 +84,8 @@ redeclarationTest = testCase "Redeclaration" $ do
                 free a
                 free b
                 -- free c
-            a = 0
-        compileAndRun program @?= Just (Redeclaration a)
+            addr = 0
+        compileAndRun program @?= Just (MemoryLeak [addr])
 
 deallocatingUnallocatedTest :: TestTree
 deallocatingUnallocatedTest = testCase "DeallocatingUnallocated" $ do
@@ -165,7 +162,7 @@ goodProgramTest = testCase "Good program 1" $ do
         let testError = fst $ compileAndRun_ (Map.unionWith (++) program freeProgram) 
         testError @?= Nothing
         let registerAfterProgram = _register $ snd $ compileAndRun_ program
-        registerAfterProgram @?= Map.fromList  [ (a, Just 92) , (b, Just 34) , (c, Just 24)]
+        registerAfterProgram @?= Map.fromList  [ (0, Just 34) , (1, Just 24) , (2, Just 92)]
 
 goodProgram2Test :: TestTree
 goodProgram2Test = testCase "Good program 2 : simplest" $ do
@@ -209,9 +206,10 @@ multiLabelTest = testCase "Good program 2: is odd?" $ do
          compileAndRun (Map.unionWith (++) freeVars multiLabelProgram) @?= Nothing
          let results  = snd $ compileAndRun_ multiLabelProgram
          let register = _register results
+         let nameMap  = _nameMap  results
          -- liftIO $ forM_ (reverse $ _logger results) putStrLn
          -- liftIO $  putStrLn "############"
-         register Map.! to_return @?= Just 1
+         register Map.! (nameMap Map.! to_return) @?= Just 1
 
 
 multiLabelProgram :: Module String
