@@ -31,13 +31,14 @@ useAfterFreeTest :: TestTree
 useAfterFreeTest = testCase "UseAfterFree" $ do
         let program :: Module Int
             program = mkProg $ do
-                allocate a
-                allocate b
+                a <- allocate_
+                b <- allocate_
                 a |= Cst 32
                 free a
                 b |= BinOp Add (Cst 21) (Var a)
                 free b
 
+            a = 0
         compileAndRun program @?= Just (UseAfterFree a)
 
 
@@ -45,12 +46,12 @@ usingUnassignedValueTest :: TestTree
 usingUnassignedValueTest = testCase "UsingUnassignedValue" $ do
         let program :: Module Int
             program = mkProg $ do
-                allocate a
-                allocate b
+                a <- allocate_
+                b <- allocate_
                 b |= BinOp Add (Cst 21) (Var a)
                 free a
                 free b
-
+            a = 0
         compileAndRun program @?= Just (UsingUnassignedValue a)
 
 
@@ -58,24 +59,25 @@ memoryLeakTest :: TestTree
 memoryLeakTest = testCase "MemoryLeak" $ do
         let program :: Module Int
             program = mkProg $ do
-                allocate a
-                allocate b
-                allocate c
+                a <- allocate_
+                b <- allocate_
+                c <- allocate_
                 a |= Cst 34
                 b |= BinOp Add (Cst 21) (Var a)
                 c |= BinOp Add (Var b)  (Var a)
                 free a
                 free b
                 -- free c
-
+            c = 2
         compileAndRun program @?= Just (MemoryLeak [c])
 
 redeclarationTest :: TestTree
 redeclarationTest = testCase "Redeclaration" $ do
         let program :: Module Int
             program = mkProg $ do
-                allocate a
-                allocate b
+                a <- allocate_
+                b <- allocate_
+
                 a |= Cst 34
                 b |= BinOp Add (Cst 21) (Var a)
 
@@ -85,41 +87,41 @@ redeclarationTest = testCase "Redeclaration" $ do
                 free a
                 free b
                 -- free c
-
+            a = 0
         compileAndRun program @?= Just (Redeclaration a)
 
 deallocatingUnallocatedTest :: TestTree
 deallocatingUnallocatedTest = testCase "DeallocatingUnallocated" $ do
         let program :: Module Int
             program = mkProg $ do
-                allocate a
-                allocate b
+                a <- allocate_
+                b <- allocate_
                 a |= Cst 34
                 b |= BinOp Add (Cst 21) (Var a)
                 free a
                 free b
                 free a
                 -- free c
-
+            a = 0
         compileAndRun program @?= Just (DeallocatingUnallocated a)
 
 assigningUnallocatedTest :: TestTree
 assigningUnallocatedTest = testCase "AssigningUndeclared" $ do
         let program :: Module Int
             program = mkProg $ do
-                allocate b
+                a <- newName
+                b <- allocate_ 
                 a |= Cst 34
                 b |= BinOp Add (Cst 21) (Var a)
                 free a
                 free b
-
+            a = 0
         compileAndRun program @?= Just (AssigningUndeclared a)
 
 allocatingAcrossJumps :: TestTree
 allocatingAcrossJumps = testCase "Allocating across jumps : good program" $ do
-         let a:b:c:_ = [0..]
          let program = mkProg $ do
-                         allocate a
+                         a <- allocate_
                          jump "test"
 
                          "test" ~> do
@@ -128,7 +130,7 @@ allocatingAcrossJumps = testCase "Allocating across jumps : good program" $ do
          compileAndRun program @?= Nothing
 
          let program = mkProg $ do
-                         allocate a
+                         a <- allocate_
                          jump "test"
 
                          "test" ~> do
@@ -142,6 +144,7 @@ allocatingAcrossJumps = testCase "Allocating across jumps : good program" $ do
 
 goodProgramTest :: TestTree
 goodProgramTest = testCase "Good program 1" $ do
+        let a:b:c:_ = [0..]
         let program :: Module Int
             program = mkProg $ do
                 allocate b
@@ -177,8 +180,7 @@ loggerTest :: TestTree
 loggerTest = testCase "test logger" $ do
     let simpleProgram :: Module String
         simpleProgram = mkProg $ do
-            let a:_ = [0..]
-            allocate a
+            a <- allocate_
             a |= Cst 0
             free a
 
@@ -236,7 +238,3 @@ multiLabelProgram = mkProg $ do
 
 ------------------- UTILS -----------------
 
-a, b, c :: CName
-a = 1
-b = 2
-c = 3

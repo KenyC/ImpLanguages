@@ -100,14 +100,16 @@ type Module scopeLabel = Map scopeLabel [CScope scopeLabel 'UnitTy]
 
 data ProgramState scopeLabel = ProgramState {
     _moduleProg   :: Module scopeLabel,
-    _currentLabel :: scopeLabel
+    _currentLabel :: scopeLabel,
+    _nextName     :: CName
 }
 makeLenses ''ProgramState
 
 initialProgramState :: (Default scopeLabel) => ProgramState scopeLabel
 initialProgramState = ProgramState {
     _moduleProg   = Map.empty,
-    _currentLabel = def
+    _currentLabel = def,
+    _nextName     = 0
 }
 
 
@@ -133,6 +135,18 @@ addToLabel instruction = do
 -- Allocation
 allocate :: (Ord scopeLabel) => CName -> CProgram scopeLabel ()
 allocate name = addToLabel $ Allocate name 
+
+allocate_ :: (Ord scopeLabel) => CProgram scopeLabel CName
+allocate_ = do
+    name <- newName
+    addToLabel $ Allocate name 
+    return name
+
+newName :: CProgram scopeLabel CName
+newName = do 
+    name <- use nextName
+    modifying nextName (+1)
+    return name
 
 free :: (Ord scopeLabel) => CName -> CProgram scopeLabel ()
 free name = addToLabel $ Free name 

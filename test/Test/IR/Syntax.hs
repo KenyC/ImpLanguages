@@ -20,7 +20,7 @@ multiLabelModule :: TestTree
 multiLabelModule = testCase "Defining multilabel module monadically" $ do
     let program :: Module String
         program = mkProg $ do
-             allocate 0
+             x <- allocate_
              jump "a"
 
              "a" ~> do
@@ -28,9 +28,9 @@ multiLabelModule = testCase "Defining multilabel module monadically" $ do
                 free 2
 
              "b" ~> do
-                0 |= Cst 34
+                x |= Cst 34
 
-             free 0
+             free x
 
     let expected :: Module String
         expected = Map.fromList $
