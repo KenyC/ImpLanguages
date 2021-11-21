@@ -18,11 +18,14 @@ allTests = testGroup
                 , assigningUnallocatedTest
                 , useAfterFreeTest
                 , goodProgramTest
+                , allocatingAcrossJumps
+                , multiLabelTest
                 , memoryLeakTest           ]
 
 useAfterFreeTest :: TestTree
-useAfterFreeTest = testCaseSteps "UseAfterFree" $ \step -> do
-        let program = mkProg $ do
+useAfterFreeTest = testCase "UseAfterFree" $ do
+        let program :: Module Int
+            program = mkProg $ do
                 allocate a
                 allocate b
                 a |= Cst 32
@@ -30,24 +33,26 @@ useAfterFreeTest = testCaseSteps "UseAfterFree" $ \step -> do
                 b |= BinOp Add (Cst 21) (Var a)
                 free b
 
-        compileAndRun program @?= Left UseAfterFree
+        compileAndRun program @?= Just (UseAfterFree a)
 
 
 usingUnassignedValueTest :: TestTree
-usingUnassignedValueTest = testCaseSteps "UsingUnassignedValue" $ \step -> do
-        let program = mkProg $ do
+usingUnassignedValueTest = testCase "UsingUnassignedValue" $ do
+        let program :: Module Int
+            program = mkProg $ do
                 allocate a
                 allocate b
                 b |= BinOp Add (Cst 21) (Var a)
                 free a
                 free b
 
-        compileAndRun program @?= Left UsingUnassignedValue
+        compileAndRun program @?= Just (UsingUnassignedValue a)
 
 
 memoryLeakTest :: TestTree
-memoryLeakTest = testCaseSteps "MemoryLeak" $ \step -> do
-        let program = mkProg $ do
+memoryLeakTest = testCase "MemoryLeak" $ do
+        let program :: Module Int
+            program = mkProg $ do
                 allocate a
                 allocate b
                 allocate c
@@ -58,11 +63,12 @@ memoryLeakTest = testCaseSteps "MemoryLeak" $ \step -> do
                 free b
                 -- free c
 
-        compileAndRun program @?= Left MemoryLeak
+        compileAndRun program @?= Just (MemoryLeak [c])
 
 redeclarationTest :: TestTree
-redeclarationTest = testCaseSteps "Redeclaration" $ \step -> do
-        let program = mkProg $ do
+redeclarationTest = testCase "Redeclaration" $ do
+        let program :: Module Int
+            program = mkProg $ do
                 allocate a
                 allocate b
                 a |= Cst 34
@@ -75,11 +81,12 @@ redeclarationTest = testCaseSteps "Redeclaration" $ \step -> do
                 free b
                 -- free c
 
-        compileAndRun program @?= Left Redeclaration
+        compileAndRun program @?= Just (Redeclaration a)
 
 deallocatingUnallocatedTest :: TestTree
-deallocatingUnallocatedTest = testCaseSteps "DeallocatingUnallocated" $ \step -> do
-        let program = mkProg $ do
+deallocatingUnallocatedTest = testCase "DeallocatingUnallocated" $ do
+        let program :: Module Int
+            program = mkProg $ do
                 allocate a
                 allocate b
                 a |= Cst 34
@@ -89,22 +96,49 @@ deallocatingUnallocatedTest = testCaseSteps "DeallocatingUnallocated" $ \step ->
                 free a
                 -- free c
 
-        compileAndRun program @?= Left DeallocatingUnallocated
+        compileAndRun program @?= Just (DeallocatingUnallocated a)
 
 assigningUnallocatedTest :: TestTree
-assigningUnallocatedTest = testCaseSteps "AssigningUndeclared" $ \step -> do
-        let program = mkProg $ do
+assigningUnallocatedTest = testCase "AssigningUndeclared" $ do
+        let program :: Module Int
+            program = mkProg $ do
                 allocate b
                 a |= Cst 34
                 b |= BinOp Add (Cst 21) (Var a)
                 free a
                 free b
 
-        compileAndRun program @?= Left AssigningUndeclared
+        compileAndRun program @?= Just (AssigningUndeclared a)
+
+allocatingAcrossJumps :: TestTree
+allocatingAcrossJumps = testCase "Allocating across jumps : good program" $ do
+         let a:b:c:_ = [0..]
+         let program = mkProg $ do
+                         allocate a
+                         jump "test"
+
+                         "test" ~> do
+                              a |= Cst 23
+                              free a
+         compileAndRun program @?= Nothing
+
+         let program = mkProg $ do
+                         allocate a
+                         jump "test"
+
+                         "test" ~> do
+                              a |= Cst 23
+                              jeq (Var a) (Cst 23) "free"
+
+                         "free" ~> do
+                              free a
+ 
+         compileAndRun program @?= Nothing
 
 goodProgramTest :: TestTree
-goodProgramTest = testCaseSteps "Good program 1" $ \step -> do
-        let program = mkProg $ do
+goodProgramTest = testCase "Good program 1" $ do
+        let program :: Module Int
+            program = mkProg $ do
                 allocate b
                 b |= Cst 34
 
@@ -120,12 +154,49 @@ goodProgramTest = testCaseSteps "Good program 1" $ \step -> do
                 free b
                 free c
 
-        compileAndRun_ (Seq [program, freeProgram]) @?= (Right (), Map.empty)
-        compileAndRun_ program @?= ( Left MemoryLeak
-                                   , Map.fromList $ 
-                                        [ (a, Just 92)
-                                        , (b, Just 34)
-                                        , (c, Just 24)])
+        compileAndRun_ (Map.unionWith Seq program freeProgram) @?= (Nothing, Map.empty)
+        let registerAfterProgram = snd $ compileAndRun_ program
+        registerAfterProgram @?= Map.fromList  [ (a, Just 92) , (b, Just 34) , (c, Just 24)]
+
+{-
+Program test if "number" is odd
+
+-}
+multiLabelTest :: TestTree
+multiLabelTest = testCase "Good program 2: is odd?" $ do
+         let number:to_return:_ = [0..]
+         let program :: Module String
+             program = mkProg $ do
+               allocate number
+               allocate to_return
+               number |= Cst 3
+               jump "subBy2"
+
+               "subBy2" ~> do 
+                  number |= BinOp Sub
+                              (Var number)
+                              (Cst 2)
+                  jeq (Var number) (Cst 0) "end"
+                  jeq (Var number) (Cst 1) "end"
+                  jump "subBy2"
+                  jump "end"
+
+               "end" ~> do
+                  to_return |= Var number
+                  jump "freeVars"
+
+             freeVars :: Module String
+             freeVars = mkProg $ "freeVars" ~> do 
+                                    free number
+                                    free to_return
+
+         compileAndRun (Map.union program freeVars) @?= Nothing
+         let (_, register) = compileAndRun_ program
+         register Map.! to_return @?= Just 1
+
+
+
+
 
 ------------------- UTILS -----------------
 

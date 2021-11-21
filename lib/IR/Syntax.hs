@@ -1,6 +1,10 @@
 module IR.Syntax where
 
-import Control.Monad.Writer
+import Control.Lens
+import Control.Monad.State.Strict
+import Data.Default
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 {-
 Language spec
@@ -30,151 +34,149 @@ data CBinOp
 toHaskOp Add = (+)
 toHaskOp Sub = (-)
 
-newtype CName   = CName   Int deriving (Num, Eq, Show, Ord) 
-newtype CIntVal = CIntVal Int deriving (Num, Eq, Show, Ord) 
+newtype CName   = CName   Int deriving (Num, Eq, Show, Enum, Ord) 
+newtype CIntVal = CIntVal Int deriving (Num, Eq, Show, Enum, Ord) 
 
 
 
-data CProgram exprTy where
+data CScope scopeLabel exprTy where
     -- Allocation
-    Allocate :: CName -> CProgram 'UnitTy
-    Free     :: CName -> CProgram 'UnitTy
+    Allocate :: CName -> CScope scopeLabel 'UnitTy
+    Free     :: CName -> CScope scopeLabel 'UnitTy
 
     -- Expressions
     Cst :: 
          CIntVal
-      -> CProgram 'IntTy
+      -> CScope scopeLabel 'IntTy
 
     Var :: 
          CName
-      -> CProgram 'IntTy
+      -> CScope scopeLabel 'IntTy
 
     BinOp :: 
          CBinOp
-      -> CProgram 'IntTy
-      -> CProgram 'IntTy
-      -> CProgram 'IntTy
+      -> CScope scopeLabel 'IntTy
+      -> CScope scopeLabel 'IntTy
+      -> CScope scopeLabel 'IntTy
 
     -- Set
     Set ::
         CName
-     -> CProgram 'IntTy
-     -> CProgram 'UnitTy
+     -> CScope scopeLabel 'IntTy
+     -> CScope scopeLabel 'UnitTy
 
     -- Control structures
     Seq ::
-         [CProgram 'UnitTy]
-      ->  CProgram 'UnitTy
+          CScope scopeLabel 'UnitTy
+      ->  CScope scopeLabel 'UnitTy
+      ->  CScope scopeLabel 'UnitTy
+
+    -- 
+    Jump ::
+         scopeLabel
+      -> CScope scopeLabel 'UnitTy
+
+    JEq ::
+         CScope scopeLabel 'IntTy
+      -> CScope scopeLabel 'IntTy
+      -> scopeLabel
+      -> CScope scopeLabel 'UnitTy
+
+    JNEq ::
+         CScope scopeLabel 'IntTy
+      -> CScope scopeLabel 'IntTy
+      -> scopeLabel
+      -> CScope scopeLabel 'UnitTy
+
+deriving instance (Eq scopeLabel)   => Eq   (CScope scopeLabel a)
+deriving instance (Show scopeLabel) => Show (CScope scopeLabel a)
+
+instance Semigroup (CScope scopeLabel 'UnitTy) where
+    (<>) = Seq 
+
+type Module scopeLabel = Map scopeLabel (CScope scopeLabel 'UnitTy)
+
+data ProgramState scopeLabel = ProgramState {
+    _moduleProg   :: Module scopeLabel,
+    _currentLabel :: scopeLabel
+}
+makeLenses ''ProgramState
+
+initialProgramState :: (Default scopeLabel) => ProgramState scopeLabel
+initialProgramState = ProgramState {
+    _moduleProg   = Map.empty,
+    _currentLabel = def
+}
 
 
-
-newtype CProgram_ a = CProgram_ {
-    unwrapProgram :: Writer [CProgram 'UnitTy] a
-} deriving 
+newtype CProgram scopeLabel a = CProgram {
+    unwrapProgram :: State (ProgramState scopeLabel) a
+} deriving
     ( Functor
     , Applicative
     , Monad
-    , MonadWriter [CProgram 'UnitTy] )
+    , MonadState (ProgramState scopeLabel) )
+
+------------------- UTILS -----------------
+
+addToLabel 
+    :: (Ord scopeLabel) 
+    => CScope scopeLabel 'UnitTy 
+    -> CProgram scopeLabel ()
+addToLabel instruction = do
+    label <- use currentLabel
+    modifying moduleProg $ Map.insertWith (flip Seq) label instruction
 
 --
 -- Allocation
-allocate :: CName -> CProgram_ ()
-allocate name = tell [Allocate name] 
+allocate :: (Ord scopeLabel) => CName -> CProgram scopeLabel ()
+allocate name = addToLabel $ Allocate name 
 
-free     :: CName -> CProgram_ ()
-free name = tell [Free name] 
+free :: (Ord scopeLabel) => CName -> CProgram scopeLabel ()
+free name = addToLabel $ Free name 
 
+jump :: (Ord scopeLabel) => scopeLabel -> CProgram scopeLabel ()
+jump label = addToLabel $ Jump label 
 
-(|=) :: CName
-     -> CProgram 'IntTy
-     -> CProgram_ ()
-(|=) name expr = tell [Set name expr]
+jeq :: 
+    (Ord scopeLabel) 
+ => CScope scopeLabel 'IntTy 
+ -> CScope scopeLabel 'IntTy 
+ -> scopeLabel 
+ -> CProgram scopeLabel ()
+jeq expr1 expr2 label = addToLabel $ JEq expr1 expr2 label  
 
-
-mkProg :: CProgram_ a -> CProgram 'UnitTy
-mkProg = Seq . execWriter . unwrapProgram
-
-
-
-
-
-goodProgram :: CProgram 'UnitTy
-goodProgram = mkProg $ do
-    let a = 0
-    let b = 1
-    let c = 2
-
-    allocate a
-    a |= Cst 0
-    free a
+jneq :: 
+    (Ord scopeLabel) 
+ => CScope scopeLabel 'IntTy 
+ -> CScope scopeLabel 'IntTy 
+ -> scopeLabel 
+ -> CProgram scopeLabel ()
+jneq expr1 expr2 label = addToLabel $ JNEq expr1 expr2 label  
 
 
-goodProgram1 :: CProgram 'UnitTy
-goodProgram1 = mkProg $ do
-    let a = 0
-    let b = 1
-    let c = 2
+(|=) 
+    :: (Ord scopeLabel)
+    => CName
+    -> CScope scopeLabel 'IntTy
+    -> CProgram scopeLabel ()
+(|=) name expr = addToLabel $ Set name expr
 
-    allocate b 
-    b |= Cst 23 
-
-    allocate c 
-    c |= Cst 24 
-
-    allocate a
-    a |= BinOp Add 
-            (Var b)
-            (Var c)
-
-    free a
-    free b
-    free c
+(~>) :: scopeLabel -> CProgram scopeLabel () -> CProgram scopeLabel ()
+(~>) label scope = do 
+    oldLabel <- use currentLabel
+    assign currentLabel label
+    scope
+    assign currentLabel oldLabel
 
 
 
 
-badProgram :: CProgram 'UnitTy
-badProgram = mkProg $ do
-    let a = 0
-    let b = 1
-    let c = 2
 
-    allocate a
-    a |= Cst 0
-    -- forgetting to free
-
-
-
-badProgram1 :: CProgram 'UnitTy
-badProgram1 = mkProg $ do
-    let a = 0
-    let b = 1
-    let c = 2
-
-    allocate a
-    allocate b
-    -- giving a an undefined value
-    a |= Var b
-    free a
-    free b
-
-
-
-
-badProgram2 :: CProgram 'UnitTy
-badProgram2 = mkProg $ do
-    let a = 0
-    let b = 1
-    let c = 2
-
-    allocate a
-    a |= Cst 0
-    free a
-
-    -- Using a after it has been freed
-    allocate b
-    b |= Cst 0
-    b |= Var a
-    free b
+mkProg :: (Default scopeLabel) => CProgram scopeLabel a -> Module scopeLabel
+mkProg = 
+    view moduleProg .
+    (flip execState initialProgramState) . 
+    unwrapProgram
 
 
