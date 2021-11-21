@@ -1,4 +1,4 @@
-module IR.Frontend.Haskell where
+module IR.Backend.Haskell where
 
 import Control.Monad.State.Strict
 import Control.Monad.Except

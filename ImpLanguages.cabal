@@ -17,11 +17,10 @@ maintainer:          keny.chatain@gmail.com
 build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
-executable ImpLanguages
-  main-is:             Main.hs
-  other-modules:       IR.Syntax
-                       IR.Frontend.Haskell
-  hs-source-dirs:      src
+library
+  exposed-modules:     IR.Syntax
+                       IR.Backend.Haskell
+  hs-source-dirs:      lib
   -- other-extensions:
   default-extensions:
     GADTs
