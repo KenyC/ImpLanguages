@@ -42,7 +42,7 @@ data RuntimeException label
     | MemoryLeak [CAddr]              -- ^  something hasn't be freed at the end of program
     -- | Redeclaration CName             -- ^  something was allocated twice
     | DeallocatingUnallocated CName   -- ^  "free" was called on something that wasn't allocated before 
-    | AssigningUndeclared CName       -- ^  something was assigned to a name that hasn't been allocated before
+    | AssigningUnallocated CName      -- ^  something was assigned to a name that hasn't been allocated before
     | UndefinedLabels [label]         -- ^  there are jumps to labels not defined in modules 
     deriving (Show, Eq, Ord)
 
@@ -164,7 +164,7 @@ runtime (Free name) =
 
 
 runtime (Set name expr) = 
-    withAddr name (AssigningUndeclared name) $ \addr -> do
+    withAddr name (AssigningUnallocated name) $ \addr -> do
         value <- evaluate expr
         writeToLog $ printf "%s <- %s (= %s)" (show name) (show expr) (show value)
         modifying register $ 

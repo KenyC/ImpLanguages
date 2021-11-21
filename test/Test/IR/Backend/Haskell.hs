@@ -103,7 +103,7 @@ deallocatingUnallocatedTest = testCase "DeallocatingUnallocated" $ do
         compileAndRun program @?= Just (DeallocatingUnallocated a)
 
 assigningUnallocatedTest :: TestTree
-assigningUnallocatedTest = testCase "AssigningUndeclared" $ do
+assigningUnallocatedTest = testCase "AssigningUnallocated" $ do
         let program :: Module Int
             program = mkProg $ do
                 a <- newName
@@ -113,7 +113,7 @@ assigningUnallocatedTest = testCase "AssigningUndeclared" $ do
                 free a
                 free b
             a = 0
-        compileAndRun program @?= Just (AssigningUndeclared a)
+        compileAndRun program @?= Just (AssigningUnallocated a)
 
 allocatingAcrossJumps :: TestTree
 allocatingAcrossJumps = testCase "Allocating across jumps : good program" $ do
