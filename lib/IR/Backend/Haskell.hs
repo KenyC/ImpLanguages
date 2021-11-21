@@ -20,7 +20,7 @@ initialState = RuntimeState Map.empty
 
 
 data RuntimeException
-    = UsingDanglingPointer
+    = UseAfterFree
     | UsingUnassignedValue
     | MemoryLeak
     | Redeclaration
@@ -91,7 +91,7 @@ evaluate (Var   var) = do
     case maybeVal of 
         Just (Just x) -> return x
         Just _ -> throwError UsingUnassignedValue
-        _      -> throwError UsingDanglingPointer
+        _      -> throwError UseAfterFree
 
 evaluate (BinOp op expr1 expr2) = do
     result1 <- evaluate expr1
@@ -109,5 +109,18 @@ run program =
     checkLeaks program 
 
 
+run_ :: Runtime a -> (Either RuntimeException a, Register)
+run_ program = 
+    over _2 _register $
+    runIdentity $
+    flip runStateT initialState $
+    runExceptT          $
+    unwrapRuntime       $
+    checkLeaks program 
+
+
 compileAndRun :: CProgram 'UnitTy -> Either RuntimeException ()
 compileAndRun = run . compile
+
+compileAndRun_ :: CProgram 'UnitTy -> (Either RuntimeException (), Register)
+compileAndRun_ = run_ . compile

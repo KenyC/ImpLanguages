@@ -86,8 +86,8 @@ free name = tell [Free name]
 
 
 (|=) :: CName
- -> CProgram 'IntTy
- -> CProgram_ ()
+     -> CProgram 'IntTy
+     -> CProgram_ ()
 (|=) name expr = tell [Set name expr]
 
 

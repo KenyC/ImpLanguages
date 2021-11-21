@@ -41,8 +41,21 @@ library
     TypeOperators
     GeneralizedNewtypeDeriving
 
+  default-language:   Haskell2010
   build-depends:        base >=4.13 && <4.14
                       , mtl
                       , containers
                       , lens
-  default-language:    Haskell2010
+
+Test-Suite main-test
+    type:               exitcode-stdio-1.0
+    main-is:            Main.hs
+    other-modules:      Test.IR.Backend.Haskell
+    hs-source-dirs:     test
+    default-language:   Haskell2010
+    build-depends:      base
+                      , ImpLanguages
+                      , containers
+                      , tasty
+                      , tasty-hunit
+                      , tasty-quickcheck
