@@ -31,9 +31,19 @@ data CBinOp
     = Add
     | Sub
     deriving (Eq, Show)
-
 toHaskOp Add = (+)
 toHaskOp Sub = (-)
+
+data CCompOp
+    = Eq
+    | NEq
+    | More
+    | MoreEq
+    deriving (Eq, Show)
+toHaskCompOp Eq     = (==) 
+toHaskCompOp NEq    = (/=) 
+toHaskCompOp More   = (>) 
+toHaskCompOp MoreEq = (>=) 
 
 newtype CName   = CName   Int deriving (Num, Eq, Show, Enum, Ord, PrintfArg) 
 newtype CIntVal = CIntVal Int deriving (Num, Eq, Show, Enum, Ord, PrintfArg) 
@@ -78,17 +88,13 @@ data CScope scopeLabel exprTy where
          scopeLabel
       -> CScope scopeLabel 'UnitTy
 
-    JEq ::
-         CScope scopeLabel 'IntTy
+    JComp ::
+         CCompOp
+      -> CScope scopeLabel 'IntTy
       -> CScope scopeLabel 'IntTy
       -> scopeLabel
       -> CScope scopeLabel 'UnitTy
 
-    JNEq ::
-         CScope scopeLabel 'IntTy
-      -> CScope scopeLabel 'IntTy
-      -> scopeLabel
-      -> CScope scopeLabel 'UnitTy
 
 deriving instance (Eq scopeLabel)   => Eq   (CScope scopeLabel a)
 deriving instance (Show scopeLabel) => Show (CScope scopeLabel a)
@@ -154,13 +160,23 @@ free name = addToLabel $ Free name
 jump :: (Ord scopeLabel) => scopeLabel -> CProgram scopeLabel ()
 jump label = addToLabel $ Jump label 
 
+jcomp :: 
+    (Ord scopeLabel) 
+ => CCompOp 
+ -> CScope scopeLabel 'IntTy 
+ -> CScope scopeLabel 'IntTy 
+ -> scopeLabel 
+ -> CProgram scopeLabel ()
+jcomp op expr1 expr2 label = addToLabel $ JComp op expr1 expr2 label  
+
+
 jeq :: 
     (Ord scopeLabel) 
  => CScope scopeLabel 'IntTy 
  -> CScope scopeLabel 'IntTy 
  -> scopeLabel 
  -> CProgram scopeLabel ()
-jeq expr1 expr2 label = addToLabel $ JEq expr1 expr2 label  
+jeq = jcomp Eq  
 
 jneq :: 
     (Ord scopeLabel) 
@@ -168,7 +184,7 @@ jneq ::
  -> CScope scopeLabel 'IntTy 
  -> scopeLabel 
  -> CProgram scopeLabel ()
-jneq expr1 expr2 label = addToLabel $ JNEq expr1 expr2 label  
+jneq = jcomp NEq  
 
 
 (|=) 

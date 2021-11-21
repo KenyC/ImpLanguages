@@ -62,10 +62,9 @@ checkLinkInScope
     -> CScope label 'UnitTy 
     -> [label]
 checkLinkInScope mainModule scope = case scope of
-    Jump l      -> if l `Map.member` mainModule then [] else [l]
-    JEq  _ _ l  -> if l `Map.member` mainModule then [] else [l]
-    JNEq _ _ l  -> if l `Map.member` mainModule then [] else [l]
-    _           -> []
+    Jump l         -> if l `Map.member` mainModule then [] else [l]
+    JComp _ _ _ l  -> if l `Map.member` mainModule then [] else [l]
+    _              -> []
 
 checkLink :: (Ord label) => Runtime label a -> Runtime label a 
 checkLink prog = do
@@ -146,17 +145,16 @@ runtime (Jump label) =
         writeToLog $ printf "jump %s" (show label) 
         assign nextInstr scope
 
-runtime (JEq  a b label) = withLabel label $ \scope -> do 
+runtime (JComp op a b label) = withLabel label $ \scope -> do 
     valA <- evaluate a
     valB <- evaluate b
-    writeToLog $ printf "jeq %s %s %s >> %s" (show a) (show b) (show label) (show $ valA == valB)
-    when (valA == valB) $ 
-        assign nextInstr scope
-runtime (JNEq  a b label) = withLabel label $ \scope -> do
-    valA <- evaluate a
-    valB <- evaluate b
-    writeToLog $ printf "jneq %s %s %s >> %s" (show a) (show b) (show label) (show $ valA /= valB)
-    when (valA /= valB) $ 
+    let compVal = toHaskCompOp op valA valB
+    writeToLog $ 
+        printf "jcomp %s %s %s %s >> %s" 
+        (show op) 
+        (show a) (show b)
+        (show label) (show compVal)
+    when compVal $ 
         assign nextInstr scope
 
 
