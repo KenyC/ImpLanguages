@@ -65,6 +65,7 @@ Test-Suite main-test
     build-depends:      base
                       , ImpLanguages
                       , containers
+                      , lens
                       , tasty
                       , tasty-hunit
                       , tasty-quickcheck

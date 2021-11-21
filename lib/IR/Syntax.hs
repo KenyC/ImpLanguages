@@ -5,6 +5,7 @@ import Control.Monad.State.Strict
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Text.Printf
 
 {-
 Language spec
@@ -34,8 +35,8 @@ data CBinOp
 toHaskOp Add = (+)
 toHaskOp Sub = (-)
 
-newtype CName   = CName   Int deriving (Num, Eq, Show, Enum, Ord) 
-newtype CIntVal = CIntVal Int deriving (Num, Eq, Show, Enum, Ord) 
+newtype CName   = CName   Int deriving (Num, Eq, Show, Enum, Ord, PrintfArg) 
+newtype CIntVal = CIntVal Int deriving (Num, Eq, Show, Enum, Ord, PrintfArg) 
 
 
 
@@ -66,10 +67,11 @@ data CScope scopeLabel exprTy where
      -> CScope scopeLabel 'UnitTy
 
     -- Control structures
-    Seq ::
-          CScope scopeLabel 'UnitTy
-      ->  CScope scopeLabel 'UnitTy
-      ->  CScope scopeLabel 'UnitTy
+    -- Seq ::
+    --       CScope scopeLabel 'UnitTy
+    --   ->  CScope scopeLabel 'UnitTy
+    --   ->  CScope scopeLabel 'UnitTy
+    Pass :: CScope scopeLabel 'UnitTy
 
     -- 
     Jump ::
@@ -91,10 +93,10 @@ data CScope scopeLabel exprTy where
 deriving instance (Eq scopeLabel)   => Eq   (CScope scopeLabel a)
 deriving instance (Show scopeLabel) => Show (CScope scopeLabel a)
 
-instance Semigroup (CScope scopeLabel 'UnitTy) where
-    (<>) = Seq 
+-- instance Semigroup (CScope scopeLabel 'UnitTy) where
+--     (<>) = Seq 
 
-type Module scopeLabel = Map scopeLabel (CScope scopeLabel 'UnitTy)
+type Module scopeLabel = Map scopeLabel [CScope scopeLabel 'UnitTy]
 
 data ProgramState scopeLabel = ProgramState {
     _moduleProg   :: Module scopeLabel,
@@ -125,7 +127,7 @@ addToLabel
     -> CProgram scopeLabel ()
 addToLabel instruction = do
     label <- use currentLabel
-    modifying moduleProg $ Map.insertWith (flip Seq) label instruction
+    modifying moduleProg $ Map.insertWith (flip (++)) label [instruction]
 
 --
 -- Allocation

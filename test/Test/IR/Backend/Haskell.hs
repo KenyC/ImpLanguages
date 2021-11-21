@@ -1,5 +1,8 @@
 module Test.IR.Backend.Haskell where
 
+import Control.Lens
+import Control.Monad
+import Control.Monad.IO.Class
 import qualified Data.Map as Map
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -12,12 +15,14 @@ import IR.Backend.Haskell
 allTests :: TestTree
 allTests = testGroup 
                 "Haskell Backend"
-                [ usingUnassignedValueTest 
+                [ goodProgram2Test 
+                , usingUnassignedValueTest 
                 , redeclarationTest
                 , deallocatingUnallocatedTest           
                 , assigningUnallocatedTest
                 , useAfterFreeTest
                 , goodProgramTest
+                , loggerTest
                 , allocatingAcrossJumps
                 , multiLabelTest
                 , memoryLeakTest           ]
@@ -154,9 +159,35 @@ goodProgramTest = testCase "Good program 1" $ do
                 free b
                 free c
 
-        compileAndRun_ (Map.unionWith Seq program freeProgram) @?= (Nothing, Map.empty)
-        let registerAfterProgram = snd $ compileAndRun_ program
+        let testError = fst $ compileAndRun_ (Map.unionWith (++) program freeProgram) 
+        testError @?= Nothing
+        let registerAfterProgram = _register $ snd $ compileAndRun_ program
         registerAfterProgram @?= Map.fromList  [ (a, Just 92) , (b, Just 34) , (c, Just 24)]
+
+goodProgram2Test :: TestTree
+goodProgram2Test = testCase "Good program 2 : simplest" $ do
+        let program :: Module Int
+            program = mkProg $ do
+                allocate 0
+                free     0
+        let testError = fst $ compileAndRun_ program
+        testError @?= Nothing
+
+loggerTest :: TestTree
+loggerTest = testCase "test logger" $ do
+    let simpleProgram :: Module String
+        simpleProgram = mkProg $ do
+            let a:_ = [0..]
+            allocate a
+            a |= Cst 0
+            free a
+
+    let logResult = view (_2 . logger) $ compileAndRun_ simpleProgram
+    let expectedLog = [ "free CName 0"
+                      , "CName 0 <- Cst (CIntVal 0) (= CIntVal 0)"
+                      , "allocate CName 0"]
+
+    logResult @?= expectedLog
 
 {-
 Program test if "number" is odd
@@ -164,37 +195,42 @@ Program test if "number" is odd
 -}
 multiLabelTest :: TestTree
 multiLabelTest = testCase "Good program 2: is odd?" $ do
+
          let number:to_return:_ = [0..]
-         let program :: Module String
-             program = mkProg $ do
-               allocate number
-               allocate to_return
-               number |= Cst 3
-               jump "subBy2"
+         let freeVars :: Module String
+             freeVars = mkProg $ do
+                            "end"      ~> jump "freeVars"
+                            "freeVars" ~> do 
+                                free number
+                                free to_return
 
-               "subBy2" ~> do 
-                  number |= BinOp Sub
-                              (Var number)
-                              (Cst 2)
-                  jeq (Var number) (Cst 0) "end"
-                  jeq (Var number) (Cst 1) "end"
-                  jump "subBy2"
-                  jump "end"
-
-               "end" ~> do
-                  to_return |= Var number
-                  jump "freeVars"
-
-             freeVars :: Module String
-             freeVars = mkProg $ "freeVars" ~> do 
-                                    free number
-                                    free to_return
-
-         compileAndRun (Map.union program freeVars) @?= Nothing
-         let (_, register) = compileAndRun_ program
+         compileAndRun (Map.unionWith (++) freeVars multiLabelProgram) @?= Nothing
+         let results  = snd $ compileAndRun_ multiLabelProgram
+         let register = _register results
+         -- liftIO $ forM_ (reverse $ _logger results) putStrLn
+         -- liftIO $  putStrLn "############"
          register Map.! to_return @?= Just 1
 
 
+multiLabelProgram :: Module String
+multiLabelProgram = mkProg $ do
+  let number:to_return:_ = [0..]
+  allocate number
+  allocate to_return
+  number |= Cst 3
+  jump "subBy2"
+
+  "subBy2" ~> do 
+     number |= BinOp Sub
+                 (Var number)
+                 (Cst 2)
+     jeq (Var number) (Cst 0) "end"
+     jeq (Var number) (Cst 1) "end"
+     jump "end"
+     -- jump "subBy2"
+
+  "end" ~> do
+     to_return |= Var number
 
 
 

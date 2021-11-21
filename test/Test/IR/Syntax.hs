@@ -34,7 +34,7 @@ multiLabelModule = testCase "Defining multilabel module monadically" $ do
 
     let expected :: Module String
         expected = Map.fromList $
-                        [ (def, (Allocate 0 <> (Jump "a")) <> (Free 0))
-                        , ("a", Allocate 1 <> (Free 2))
-                        , ("b", Set 0 (Cst 34))]
+                        [ (def, [Allocate 0, Jump "a", Free 0])
+                        , ("a", [Allocate 1, Free 2])
+                        , ("b", [Set 0 (Cst 34)]) ]
     program @?= expected
