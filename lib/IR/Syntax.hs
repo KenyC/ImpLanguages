@@ -20,17 +20,16 @@ free(val);
 -}
 
 -- SYNTAX
-data CExprTy
-    = IntTy
-    | AddrTy
-    deriving (Eq, Show)
 
 data CType
     = UnitTy
-    | E CExprTy
+    | IntTy
+    | AddrTy
     deriving (Eq, Show)
 
-
+type family IsExpr a where
+    IsExpr UnitTy = 'False
+    IsExpr a      = 'True
 
 
 
@@ -64,33 +63,34 @@ data CScope scopeLabel exprTy where
 
     -- Expressions
     Deref ::
-         CScope scopeLabel (E 'AddrTy)
-      -> CScope scopeLabel (E (a :: CExprTy))
+         (IsExpr a ~ 'True)
+      => CScope scopeLabel 'AddrTy
+      -> CScope scopeLabel a
 
     Offset ::
-         CScope scopeLabel (E 'AddrTy)
+         CScope scopeLabel 'AddrTy
       -> Int
-      -> CScope scopeLabel (E 'AddrTy)
+      -> CScope scopeLabel 'AddrTy
 
 
     Cst :: 
          CIntVal
-      -> CScope scopeLabel (E 'IntTy)
+      -> CScope scopeLabel 'IntTy
 
     Var :: 
          CName
-      -> CScope scopeLabel (E 'IntTy)
+      -> CScope scopeLabel 'IntTy
 
     BinOp :: 
          CBinOp
-      -> CScope scopeLabel (E 'IntTy)
-      -> CScope scopeLabel (E 'IntTy)
-      -> CScope scopeLabel (E 'IntTy)
+      -> CScope scopeLabel 'IntTy
+      -> CScope scopeLabel 'IntTy
+      -> CScope scopeLabel 'IntTy
 
     -- Set
     Set ::
         CName
-     -> CScope scopeLabel (E 'IntTy)
+     -> CScope scopeLabel 'IntTy
      -> CScope scopeLabel 'UnitTy
 
     -- Control structures
@@ -107,8 +107,8 @@ data CScope scopeLabel exprTy where
 
     JComp ::
          CCompOp
-      -> CScope scopeLabel (E 'IntTy)
-      -> CScope scopeLabel (E 'IntTy)
+      -> CScope scopeLabel 'IntTy
+      -> CScope scopeLabel 'IntTy
       -> scopeLabel
       -> CScope scopeLabel 'UnitTy
 
@@ -180,8 +180,8 @@ jump label = addToLabel $ Jump label
 jcomp :: 
     (Ord scopeLabel) 
  => CCompOp 
- -> CScope scopeLabel (E 'IntTy) 
- -> CScope scopeLabel (E 'IntTy) 
+ -> CScope scopeLabel 'IntTy 
+ -> CScope scopeLabel 'IntTy 
  -> scopeLabel 
  -> CProgram scopeLabel ()
 jcomp op expr1 expr2 label = addToLabel $ JComp op expr1 expr2 label  
@@ -189,16 +189,16 @@ jcomp op expr1 expr2 label = addToLabel $ JComp op expr1 expr2 label
 
 jeq :: 
     (Ord scopeLabel) 
- => CScope scopeLabel (E 'IntTy) 
- -> CScope scopeLabel (E 'IntTy) 
+ => CScope scopeLabel 'IntTy 
+ -> CScope scopeLabel 'IntTy 
  -> scopeLabel 
  -> CProgram scopeLabel ()
 jeq = jcomp Eq  
 
 jneq :: 
     (Ord scopeLabel) 
- => CScope scopeLabel (E 'IntTy) 
- -> CScope scopeLabel (E 'IntTy) 
+ => CScope scopeLabel 'IntTy 
+ -> CScope scopeLabel 'IntTy 
  -> scopeLabel 
  -> CProgram scopeLabel ()
 jneq = jcomp NEq  
@@ -207,7 +207,7 @@ jneq = jcomp NEq
 (|=) 
     :: (Ord scopeLabel)
     => CName
-    -> CScope scopeLabel (E 'IntTy)
+    -> CScope scopeLabel 'IntTy
     -> CProgram scopeLabel ()
 (|=) name expr = addToLabel $ Set name expr
 
