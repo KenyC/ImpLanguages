@@ -20,11 +20,18 @@ free(val);
 -}
 
 -- SYNTAX
+data CExprTy
+    = IntTy
+    | AddrTy
+    deriving (Eq, Show)
 
 data CType
-    = IntTy
-    | UnitTy
+    = UnitTy
+    | E CExprTy
     deriving (Eq, Show)
+
+
+
 
 
 data CBinOp
@@ -52,28 +59,38 @@ newtype CIntVal = CIntVal Int deriving (Num, Eq, Show, Enum, Ord, PrintfArg)
 
 data CScope scopeLabel exprTy where
     -- Allocation
-    Allocate :: CName -> CScope scopeLabel 'UnitTy
+    Allocate :: CName -> Int -> CScope scopeLabel 'UnitTy
     Free     :: CName -> CScope scopeLabel 'UnitTy
 
     -- Expressions
+    Deref ::
+         CScope scopeLabel (E 'AddrTy)
+      -> CScope scopeLabel (E (a :: CExprTy))
+
+    Offset ::
+         CScope scopeLabel (E 'AddrTy)
+      -> Int
+      -> CScope scopeLabel (E 'AddrTy)
+
+
     Cst :: 
          CIntVal
-      -> CScope scopeLabel 'IntTy
+      -> CScope scopeLabel (E 'IntTy)
 
     Var :: 
          CName
-      -> CScope scopeLabel 'IntTy
+      -> CScope scopeLabel (E 'IntTy)
 
     BinOp :: 
          CBinOp
-      -> CScope scopeLabel 'IntTy
-      -> CScope scopeLabel 'IntTy
-      -> CScope scopeLabel 'IntTy
+      -> CScope scopeLabel (E 'IntTy)
+      -> CScope scopeLabel (E 'IntTy)
+      -> CScope scopeLabel (E 'IntTy)
 
     -- Set
     Set ::
         CName
-     -> CScope scopeLabel 'IntTy
+     -> CScope scopeLabel (E 'IntTy)
      -> CScope scopeLabel 'UnitTy
 
     -- Control structures
@@ -90,8 +107,8 @@ data CScope scopeLabel exprTy where
 
     JComp ::
          CCompOp
-      -> CScope scopeLabel 'IntTy
-      -> CScope scopeLabel 'IntTy
+      -> CScope scopeLabel (E 'IntTy)
+      -> CScope scopeLabel (E 'IntTy)
       -> scopeLabel
       -> CScope scopeLabel 'UnitTy
 
@@ -139,13 +156,13 @@ addToLabel instruction = do
 
 --
 -- Allocation
-allocate :: (Ord scopeLabel) => CName -> CProgram scopeLabel ()
-allocate name = addToLabel $ Allocate name 
+allocate :: (Ord scopeLabel) => CName -> Int -> CProgram scopeLabel ()
+allocate name n = addToLabel $ Allocate name n 
 
-allocate_ :: (Ord scopeLabel) => CProgram scopeLabel CName
-allocate_ = do
+allocate_ :: (Ord scopeLabel) => Int -> CProgram scopeLabel CName
+allocate_ n = do
     name <- newName
-    addToLabel $ Allocate name 
+    allocate name n
     return name
 
 newName :: CProgram scopeLabel CName
@@ -163,8 +180,8 @@ jump label = addToLabel $ Jump label
 jcomp :: 
     (Ord scopeLabel) 
  => CCompOp 
- -> CScope scopeLabel 'IntTy 
- -> CScope scopeLabel 'IntTy 
+ -> CScope scopeLabel (E 'IntTy) 
+ -> CScope scopeLabel (E 'IntTy) 
  -> scopeLabel 
  -> CProgram scopeLabel ()
 jcomp op expr1 expr2 label = addToLabel $ JComp op expr1 expr2 label  
@@ -172,16 +189,16 @@ jcomp op expr1 expr2 label = addToLabel $ JComp op expr1 expr2 label
 
 jeq :: 
     (Ord scopeLabel) 
- => CScope scopeLabel 'IntTy 
- -> CScope scopeLabel 'IntTy 
+ => CScope scopeLabel (E 'IntTy) 
+ -> CScope scopeLabel (E 'IntTy) 
  -> scopeLabel 
  -> CProgram scopeLabel ()
 jeq = jcomp Eq  
 
 jneq :: 
     (Ord scopeLabel) 
- => CScope scopeLabel 'IntTy 
- -> CScope scopeLabel 'IntTy 
+ => CScope scopeLabel (E 'IntTy) 
+ -> CScope scopeLabel (E 'IntTy) 
  -> scopeLabel 
  -> CProgram scopeLabel ()
 jneq = jcomp NEq  
@@ -190,7 +207,7 @@ jneq = jcomp NEq
 (|=) 
     :: (Ord scopeLabel)
     => CName
-    -> CScope scopeLabel 'IntTy
+    -> CScope scopeLabel (E 'IntTy)
     -> CProgram scopeLabel ()
 (|=) name expr = addToLabel $ Set name expr
 
