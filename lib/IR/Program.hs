@@ -61,11 +61,23 @@ newName = do
 allocate :: (Ord label) => IRName -> IRExpr label 'IntTy -> IRProgram label ()
 allocate name n = addToLabel $ Allocate name n 
 
+allocateN :: (Ord label) => IRName -> IRInt -> IRProgram label ()
+allocateN name n = allocate name $ Cst n 
+
+allocate1 :: (Ord label) => IRName -> IRProgram label ()
+allocate1 name = allocateN name 1 
+
 allocate_ :: (Ord label) => IRExpr label 'IntTy -> IRProgram label IRName
 allocate_ n = do
     name <- newName
     allocate name n
     return name
+
+allocateN_ :: (Ord label) => IRInt -> IRProgram label IRName
+allocateN_ n = allocate_ $ Cst n
+
+allocate1_ :: (Ord label) => IRProgram label IRName
+allocate1_ = allocateN_ 1
 
 free :: (Ord label) => IRName -> IRProgram label ()
 free name = addToLabel $ Free name 
@@ -100,6 +112,8 @@ jneq ::
 jneq = jcomp NEq  
 
 
+
+infix 4 |=
 (|=) 
     :: (Ord label, IsTy ty)
     => IRExpr label 'AddrTy
@@ -107,6 +121,7 @@ jneq = jcomp NEq
     -> IRProgram label ()
 (|=) name expr = addToLabel $ Set name expr
 
+infix 4 .=
 (.=) 
     :: (Ord label, IsTy ty)
     => IRName

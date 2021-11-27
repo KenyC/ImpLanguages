@@ -50,3 +50,13 @@ data IRExpr label exprTy where
     Var :: 
          IRName
       -> IRExpr label 'AddrTy
+
+deriving instance (Eq label)   => Eq   (IRExpr label a)
+deriving instance (Show label) => Show (IRExpr label a)
+
+castAndCompare :: (Eq label, IsTy ty1, IsTy ty2) => IRExpr label ty1 -> IRExpr label ty2 -> Bool
+castAndCompare expr1 expr2 = (cast expr1) == (Just expr2)
+
+infixl 6 .+.
+(.+.) :: IRExpr label 'IntTy -> IRExpr label 'IntTy -> IRExpr label 'IntTy
+(.+.) = BinOp Add

@@ -25,8 +25,16 @@ data IRScope label where
       -> label
       -> IRScope label 
 
+deriving instance (Show label) => Show (IRScope label)
 
-deriving instance (Eq label)   => Eq   (IRExpr label a)
-deriving instance (Show label) => Show (IRExpr label a)
+instance (Eq label) => Eq (IRScope label) where
+    (==) (Allocate name size) (Allocate name' size') = (name == name') && (size == size') 
+    (==) (Free name) (Free name') = (name == name') 
+    (==) (Set name expr) (Set name' expr') = (name == name') && (castAndCompare expr expr') 
+    (==) 
+        (JComp name  expr1  expr2  label) 
+        (JComp name' expr1' expr2' label') 
+        = (name == name') && (expr1 == expr1') && (expr2 == expr2') && (label == label') 
+    (==) _ _ = False
 
 type Module label = Map label [IRScope label]

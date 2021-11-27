@@ -65,8 +65,7 @@ library
 Test-Suite main-test
     type:               exitcode-stdio-1.0
     main-is:            Main.hs
-    other-modules:      Test.IR.Backend.Haskell
-                        Test.IR.Syntax
+    other-modules:      Test.IR.Syntax
     ghc-options:   -Wunused-imports
                    -Wincomplete-patterns 
                    -Wmissing-fields 
