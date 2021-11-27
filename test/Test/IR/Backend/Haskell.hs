@@ -32,7 +32,7 @@ goodProgramTest = testCase "Good programs" $ do
     let program :: Module Int
         program = mkProg $ do
             a <- allocateN_ 4
-            (Var a) `Offset` (Cst 3) |= Cst 32
+            (Var a) `Offset` (Cst 3) *= Cst 32
             free a
 
     compileAndRun program @?= Nothing
@@ -44,7 +44,7 @@ goodProgramTest = testCase "Good programs" $ do
             b <- allocate1_ 
             b .= Var a
             a .= Cst 32
-            Deref (Var b) |= Cst 33
+            Deref (Var b) *= Cst 33
             free a
             free b
 
@@ -69,7 +69,7 @@ usingUnassignedValuesTest = testCase "Using unassigned values" $ do
             a <- allocate1_ 
             b <- allocate1_ 
             a .= Cst 32
-            Deref (Var b) |= Cst 33
+            Deref (Var b) *= Cst 33
             free a
             free b
 
@@ -135,7 +135,7 @@ outOfRange = testCase "Out of range" $ do
     let program :: Module Int
         program = mkProg $ do
             a <- allocateN_ 24 
-            (Var a) `Offset` (Cst 23) |= Cst 2
+            (Var a) `Offset` (Cst 23) *= Cst 2
             free a
 
     stripLoc (compileAndRun program) @?= Nothing
@@ -143,7 +143,7 @@ outOfRange = testCase "Out of range" $ do
     let program :: Module Int
         program = mkProg $ do
             a <- allocateN_ 24 
-            (Var a) `Offset` (Cst 24) |= Cst 2
+            (Var a) `Offset` (Cst 24) *= Cst 2
             free a
 
     stripLoc (compileAndRun program) @?= Just (OutOfRange (IRAddrOffset (IRAddr 0) 24) 24)

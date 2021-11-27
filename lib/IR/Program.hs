@@ -1,6 +1,6 @@
 module IR.Program where
 
-import Control.Lens
+import Control.Lens hiding ((*=))
 import Control.Monad.State.Strict
 import Data.Default
 import qualified Data.Map as Map
@@ -114,13 +114,13 @@ jneq = jcomp NEq
 
 
 
-infix 4 |=
-(|=) 
+infix 4 *=
+(*=) 
     :: (Ord label, IsTy ty)
     => IRExpr label 'AddrTy
     -> IRExpr label ty
     -> IRProgram label ()
-(|=) name expr = addToLabel $ Set name expr
+(*=) name expr = addToLabel $ Set name expr
 
 infix 4 .=
 (.=) 
@@ -128,7 +128,7 @@ infix 4 .=
     => IRName
     -> IRExpr label ty
     -> IRProgram label ()
-(.=) name expr = Var name |= expr
+(.=) name expr = Var name *= expr
 
 
 

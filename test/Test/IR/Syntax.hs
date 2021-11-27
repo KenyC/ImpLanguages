@@ -25,7 +25,7 @@ oneScopeModule = testCase "One scope program" $ do
         program = mkProg $ do
              x <- allocate_ $ Cst 3
              x .= Cst 3 
-             (Var x) `Offset` (Cst 1) |= Cst 5
+             (Var x) `Offset` (Cst 1) *= Cst 5
              free x
     let expected :: Module String
         expected = oneScope $
