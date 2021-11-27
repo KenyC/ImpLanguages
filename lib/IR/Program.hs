@@ -60,7 +60,7 @@ newName = do
 
 ------------------- INSTRUCTIONS -----------------
 allocate :: (Ord label) => IRName -> IRExpr label 'IntTy -> IRProgram label ()
-allocate name n = addToLabel $ Allocate name n 
+allocate name n = addToLabel $ Is name (Allocate n) 
 
 allocateN :: (Ord label) => IRName -> IRInt -> IRProgram label ()
 allocateN name n = allocate name $ Cst n 
@@ -80,8 +80,8 @@ allocateN_ n = allocate_ $ Cst n
 allocate1_ :: (Ord label) => IRProgram label IRName
 allocate1_ = allocateN_ 1
 
-free :: (Ord label) => IRName -> IRProgram label ()
-free name = addToLabel $ Free name 
+free :: (Ord label) => IRExpr label 'AddrTy -> IRProgram label ()
+free expr = addToLabel $ Free expr 
 
 jump :: (Ord label) => label -> IRProgram label ()
 jump label = jcomp Eq (Cst 0) (Cst 0) label 

@@ -9,9 +9,13 @@ import IR.Loc
 
 
 data IRInstr label where
-    -- Allocation
-    Allocate :: IRName -> IRExpr label 'IntTy -> IRInstr label 
-    Free     :: IRName -> IRInstr label 
+    Free :: IRExpr label 'AddrTy -> IRInstr label 
+
+    Is ::
+         IRName
+      -> IRExpr label 'AddrTy 
+      -> IRInstr label 
+
 
     -- Set
     Set ::
@@ -40,8 +44,8 @@ instance LocStrippable (IRInstr label) where
     stripLoc instr = instr
 
 instance (Eq label) => Eq (IRInstr label) where
-    (==) (Allocate name size) (Allocate name' size') = (name == name') && (size == size') 
     (==) (Free name) (Free name') = (name == name') 
+    (==) (Is name expr) (Is name' expr') = (name == name') && (expr == expr') 
     (==) (Set name expr) (Set name' expr') = (name == name') && (castAndCompare expr expr') 
     (==) (Loc loc  instr) (Loc loc'  instr') = (loc == loc') && (instr == instr') 
     (==) 

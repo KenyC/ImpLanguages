@@ -1,10 +1,10 @@
 module IR.Backend.Haskell.Evaluate where
 
 import Control.Lens
-import Control.Monad.Except
 import qualified Data.Map as Map
 import Data.Proxy
 import Data.Vector ((!?))
+import qualified Data.Vector as Vector
 
 import IR.Backend.Haskell.State
 import IR.Syntax
@@ -51,6 +51,13 @@ derefAddr proxy addrExpr = do
 
 
 evaluateAddr :: IRExpr label 'AddrTy -> Runtime label (ValueOf 'AddrTy)
+evaluateAddr (Allocate intExpr) = do
+    size_ <- evaluateInt intExpr
+    let size = toIndex size_
+    addr <- newAddr
+    modifying register $ Map.insert addr (Vector.replicate size Nothing)
+    return $ IRAddrOffset addr 0
+
 evaluateAddr (Deref  addrExpr) = derefAddr @'AddrTy Proxy addrExpr
     
 evaluateAddr (Offset addrExpr offsetExpr) = do
@@ -60,8 +67,8 @@ evaluateAddr (Offset addrExpr offsetExpr) = do
 
 evaluateAddr (Var name) = do
     maybeAddr <- uses nameMap $ Map.lookup name 
-    addr <- maybeToError (UseUnallocatedName name) maybeAddr
-    return $ IRAddrOffset addr 0
+    addr <- maybeToError (UseUndefinedName name) maybeAddr
+    return $ addr
 
 evaluate :: (IsTy ty) => IRExpr label ty -> Runtime label (ValueOf ty)
 evaluate = _unwrapEvaluable impl

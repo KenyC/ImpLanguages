@@ -5,7 +5,6 @@ import Control.Monad
 import Control.Monad.Except
 import qualified Data.Map as Map
 import Data.Vector ((//))
-import qualified Data.Vector as Vector
 import Data.Proxy
 
 import IR.Backend.Haskell.State
@@ -45,16 +44,20 @@ runtime (Set exprAddr exprVal) = do
             vals // [(idx, Just $ toData (Proxy `asType` exprVal) value)]
 
     
-runtime (Allocate name exprInt) = do
-    size_ <- evaluate exprInt
-    let size = toIndex size_
-    addr <- newAddr
-    modifying register $ Map.insert addr (Vector.replicate size Nothing)
-    modifying nameMap  $ Map.insert name addr
+runtime (Is name addrExpr) = do
+    fullAddr <- evaluate addrExpr
+    modifying nameMap $ Map.insert name fullAddr
 
 
-runtime (Free name)     = do
-    addr <- maybeToError (DeallocatingUnallocated name) =<< uses nameMap (Map.lookup name)
+runtime (Free addrExpr)     = do
+    fullAddr@(IRAddrOffset addr offset) <- evaluateAddr addrExpr
+    addrIsAllocated <- uses register (Map.member addr)
+
+    when (not addrIsAllocated) $
+        throwError $ DeallocatingUnallocated fullAddr
+    when (offset /= 0) $
+        throwError $ FreeingInsideBlock fullAddr
+
     modifying register $ Map.delete addr
 
 runtime (JComp op expr1 expr2 label) = do

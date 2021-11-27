@@ -26,13 +26,13 @@ oneScopeModule = testCase "One scope program" $ do
              x <- allocate_ $ Cst 3
              x .= Cst 3 
              (Var x) `Offset` (Cst 1) *= Cst 5
-             free x
+             free (Var x)
     let expected :: Module String
         expected = oneScope $
-                        [ Allocate 0 (Cst 3)
+                        [ Is 0 (Allocate (Cst 3))
                         , Set (Var 0) (Cst 3)
                         , Set (Offset (Var 0) (Cst 1)) (Cst 5)
-                        , Free 0 ]
+                        , Free (Var 0) ]
 
     program @?= expected
 
@@ -42,16 +42,16 @@ oneScopeModule = testCase "One scope program" $ do
              y <- allocate1_
              x .= Cst 3 
              y .= Deref (Var x) .+. (Cst 1)
-             free x
-             free y
+             free (Var x)
+             free (Var y)
     let expected :: Module String
         expected = oneScope $
-                        [ Allocate 0 (Cst 1)
-                        , Allocate 1 (Cst 1)
+                        [ Is 0 (Allocate (Cst 1))
+                        , Is 1 (Allocate (Cst 1))
                         , Set (Var 0) (Cst 3)
                         , Set (Var 1) (BinOp Add (Deref (Var 0)) (Cst 1))
-                        , Free 0
-                        , Free 1] 
+                        , Free (Var 0)
+                        , Free (Var 1)] 
                         
     program @?= expected
 
@@ -64,16 +64,20 @@ multiLabelModule = testCase "Defining multilabel module monadically" $ do
 
              "a" ~> do
                 _ <- allocate1_
-                free 2
+                free (Var 2)
 
              "b" ~> do
                 x .= Cst 34
 
-             free x
+             free (Var x)
 
     let expected :: Module String
         expected = Map.fromList $
-                        [ (def, [Loc (IRLoc def 0) (Allocate 0 (Cst 1)), Loc (IRLoc def 1) (JComp Eq (Cst 0) (Cst 0) "a"), Loc (IRLoc def 2) (Free 0)])
-                        , ("a", [Loc (IRLoc "a" 0) (Allocate 1 (Cst 1)), Loc (IRLoc "a" 1) (Free 2)])
-                        , ("b", [Loc (IRLoc "b" 0) (Set (Var 0) (Cst 34))]) ]
+                        [ (def, [ Loc (IRLoc def 0) (Is 0 (Allocate (Cst 1)))
+                                , Loc (IRLoc def 1) (JComp Eq (Cst 0) (Cst 0) "a")
+                                , Loc (IRLoc def 2) (Free (Var 0))])
+
+                        , ("a", [ Loc (IRLoc "a" 0) (Is 1 (Allocate (Cst 1)))
+                                , Loc (IRLoc "a" 1) (Free (Var 2))])
+                        , ("b", [ Loc (IRLoc "b" 0) (Set (Var 0) (Cst 34))]) ]
     program @?= expected

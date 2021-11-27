@@ -51,6 +51,9 @@ data IRExpr label exprTy where
          IRName
       -> IRExpr label 'AddrTy
 
+    -- Allocation
+    Allocate :: IRExpr label 'IntTy  -> IRExpr label 'AddrTy 
+
 deriving instance (Eq label)   => Eq   (IRExpr label a)
 deriving instance (Show label) => Show (IRExpr label a)
 
