@@ -40,7 +40,9 @@ runtime (Set exprAddr exprVal) = do
     when (idx >= nVals) $
         throwError $ OutOfRange full nVals
 
-    modifying register $ Map.insert addr $ vals // [(idx, Just $ toData (Proxy `asType` exprVal) value)]
+    modifying register $ 
+        Map.insert addr $ 
+            vals // [(idx, Just $ toData (Proxy `asType` exprVal) value)]
 
     
 runtime (Allocate name exprInt) = do

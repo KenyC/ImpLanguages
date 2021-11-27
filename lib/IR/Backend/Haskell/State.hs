@@ -17,6 +17,7 @@ data IRAddrOffset = IRAddrOffset IRAddr IRInt deriving (Eq, Ord, Show)
 data UntypedData =
     IntVal   IRInt
   | AddrVal  IRAddrOffset
+  deriving (Show, Eq)
 makePrisms ''UntypedData  
 
 type VecVals = Vector (Maybe UntypedData)
@@ -57,7 +58,7 @@ data RuntimeException label
     | OutOfRange IRAddrOffset Int            -- ^  there are jumps to labels not defined in modules 
     | TyError 
     | ErrorAt (IRLoc label) (RuntimeException label)
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
 instance LocStrippable (RuntimeException label) where
     stripLoc (ErrorAt _ exception) = stripLoc exception 

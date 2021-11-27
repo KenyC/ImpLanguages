@@ -19,6 +19,12 @@ class RecTy (f :: IRType -> *) where
     int_   :: f 'IntTy
     addr_  :: f 'AddrTy
 
+intTy :: Proxy 'IntTy
+intTy = Proxy
+
+addrTy :: Proxy 'AddrTy
+addrTy = Proxy
+
 asType :: forall f g (a :: IRType). f a -> g a -> f a 
 asType = const
 

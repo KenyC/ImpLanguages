@@ -16,3 +16,6 @@ instance (LocStrippable a) => LocStrippable [a] where
 
 instance (LocStrippable a) => LocStrippable (Map k a) where 
     stripLoc = fmap stripLoc
+
+instance (LocStrippable a) => LocStrippable (Maybe a) where 
+    stripLoc = fmap stripLoc
