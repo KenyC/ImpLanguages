@@ -56,8 +56,12 @@ data RuntimeException label
     | UndefinedLabels [label]                -- ^  there are jumps to labels not defined in modules 
     | OutOfRange IRAddrOffset Int            -- ^  there are jumps to labels not defined in modules 
     | TyError 
+    | ErrorAt (IRLoc label) (RuntimeException label)
     deriving (Eq, Ord)
 
+instance LocStrippable (RuntimeException label) where
+    stripLoc (ErrorAt _ exception) = stripLoc exception 
+    stripLoc exception = exception
 
 newtype Runtime label a = Runtime {
     unwrapRuntime :: 

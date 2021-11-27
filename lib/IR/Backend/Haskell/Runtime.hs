@@ -61,3 +61,8 @@ runtime (JComp op expr1 expr2 label) = do
         -- Under the assumption that proper linking was checked before runtime
         instrs <- maybeToError (UndefinedLabels [label])  =<< (uses mainModule $ Map.lookup label)
         assign nextInstr $ instrs
+
+runtime (Loc loc instr) = 
+    catchError 
+        (runtime instr)
+        (\e -> throwError $ ErrorAt loc e)

@@ -18,7 +18,8 @@ allTests = testGroup
 
 oneScopeModule :: TestTree
 oneScopeModule = testCase "One scope program" $ do
-    let oneScope x = Map.fromList [(def, x)]
+    let addLoc = zipWith Loc $ map (IRLoc def) [0..]
+    let oneScope x = Map.fromList [(def, addLoc x)]
 
     let program :: Module String
         program = mkProg $ do
@@ -72,7 +73,7 @@ multiLabelModule = testCase "Defining multilabel module monadically" $ do
 
     let expected :: Module String
         expected = Map.fromList $
-                        [ (def, [Allocate 0 (Cst 1), JComp Eq (Cst 0) (Cst 0) "a", Free 0])
-                        , ("a", [Allocate 1 (Cst 1), Free 2])
-                        , ("b", [Set (Var 0) (Cst 34)]) ]
+                        [ (def, [Loc (IRLoc def 0) (Allocate 0 (Cst 1)), Loc (IRLoc def 1) (JComp Eq (Cst 0) (Cst 0) "a"), Loc (IRLoc def 2) (Free 0)])
+                        , ("a", [Loc (IRLoc "a" 0) (Allocate 1 (Cst 1)), Loc (IRLoc "a" 1) (Free 2)])
+                        , ("b", [Loc (IRLoc "b" 0) (Set (Var 0) (Cst 34))]) ]
     program @?= expected

@@ -22,6 +22,7 @@ library
                        IR.Syntax.Expr
                        IR.Syntax.Instr
                        IR.Program
+                       IR.Loc
                        IR.TypeSystem
                        IR.Backend.Haskell
                        IR.Backend.Haskell.Compiler

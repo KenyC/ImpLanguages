@@ -35,6 +35,7 @@ newtype IRProgram label a = IRProgram {
 
 mkProg :: (Default label) => IRProgram label a -> Module label
 mkProg = 
+    addLocToModule  .
     view moduleProg .
     (flip execState initialProgramState) . 
     unwrapProgram
