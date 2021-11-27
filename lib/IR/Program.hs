@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 
 import IR.TypeSystem
 import IR.Syntax.Expr
-import IR.Syntax.Scope
+import IR.Syntax.Instr
 
 -- SYNTAX
 data ProgramState label = ProgramState {
@@ -45,7 +45,7 @@ mkProg =
 
 addToLabel 
     :: (Ord label) 
-    => IRScope label  
+    => IRInstr label  
     -> IRProgram label ()
 addToLabel instruction = do
     label <- use currentLabel

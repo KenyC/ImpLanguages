@@ -29,7 +29,7 @@ data RuntimeState label = RuntimeState  {
    , _nameMap      :: NameMap
    , _mainModule   :: Module label
    , _logger       :: [String]
-   , _nextInstr    :: [IRScope label]
+   , _nextInstr    :: [IRInstr label]
 } 
 -- deriving instance (Show label) => Show (RuntimeState label)
 makeLenses ''RuntimeState

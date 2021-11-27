@@ -20,7 +20,7 @@ extra-source-files:  CHANGELOG.md
 library
   exposed-modules:     IR.Syntax
                        IR.Syntax.Expr
-                       IR.Syntax.Scope
+                       IR.Syntax.Instr
                        IR.Program
                        IR.TypeSystem
                        IR.Backend.Haskell

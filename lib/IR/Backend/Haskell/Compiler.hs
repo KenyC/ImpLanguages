@@ -19,7 +19,7 @@ checkLeaks program = do
 checkLinkInScope 
     :: (Ord label) 
     => Module label 
-    -> IRScope label 
+    -> IRInstr label 
     -> [label]
 checkLinkInScope mainModule scope = case scope of
     JComp _ _ _ l  -> if l `Map.member` mainModule then [] else [l]

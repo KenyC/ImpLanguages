@@ -29,7 +29,7 @@ runTillEnd = do
         runtimeStep
         runTillEnd
 
-runtime :: (Ord label) => IRScope label -> Runtime label ()
+runtime :: (Ord label) => IRInstr label -> Runtime label ()
 runtime (Set exprAddr exprVal) = do 
     full@(IRAddrOffset addr offset) <- evaluate exprAddr
     value <- evaluate exprVal

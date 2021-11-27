@@ -1,21 +1,21 @@
-module IR.Syntax.Scope where
+module IR.Syntax.Instr where
 
 import Data.Map (Map)
 
 import IR.TypeSystem
 import IR.Syntax.Expr
 
-data IRScope label where
+data IRInstr label where
     -- Allocation
-    Allocate :: IRName -> IRExpr label 'IntTy -> IRScope label 
-    Free     :: IRName -> IRScope label 
+    Allocate :: IRName -> IRExpr label 'IntTy -> IRInstr label 
+    Free     :: IRName -> IRInstr label 
 
     -- Set
     Set ::
         (IsTy ty)
      => IRExpr label 'AddrTy
      -> IRExpr label ty
-     -> IRScope label 
+     -> IRInstr label 
 
     -- Control structures
     JComp ::
@@ -23,11 +23,11 @@ data IRScope label where
       -> IRExpr label 'IntTy
       -> IRExpr label 'IntTy
       -> label
-      -> IRScope label 
+      -> IRInstr label 
 
-deriving instance (Show label) => Show (IRScope label)
+deriving instance (Show label) => Show (IRInstr label)
 
-instance (Eq label) => Eq (IRScope label) where
+instance (Eq label) => Eq (IRInstr label) where
     (==) (Allocate name size) (Allocate name' size') = (name == name') && (size == size') 
     (==) (Free name) (Free name') = (name == name') 
     (==) (Set name expr) (Set name' expr') = (name == name') && (castAndCompare expr expr') 
@@ -37,4 +37,4 @@ instance (Eq label) => Eq (IRScope label) where
         = (name == name') && (expr1 == expr1') && (expr2 == expr2') && (label == label') 
     (==) _ _ = False
 
-type Module label = Map label [IRScope label]
+type Module label = Map label [IRInstr label]
