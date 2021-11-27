@@ -1,5 +1,7 @@
 module Test.IR.Backend.Haskell where
 
+import Control.Lens hiding ((.=), (*=))
+import Data.Vector ((!?))
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -16,6 +18,7 @@ allTests = testGroup
                 , spaceLeaks 
                 , canReallocate 
                 , outOfRange 
+                , complexProgram 
                 , usingUnassignedValuesTest ]
 
 goodProgramTest :: TestTree
@@ -147,5 +150,43 @@ outOfRange = testCase "Out of range" $ do
             free (Var a)
 
     stripLoc (compileAndRun program) @?= Just (OutOfRange (IRAddrOffset (IRAddr 0) 24) 24)
+
+complexProgram :: TestTree
+complexProgram = testCase "Complex program" $ do
+    let fibonacci :: Module String
+        fibonacci = mkProg $ do
+            n <- allocate1_
+            n .= Cst 12
+
+            results <- allocate_ $ Deref (Var n)
+
+            (Var results) `Offset` (Cst 0) *= Cst 1
+            (Var results) `Offset` (Cst 1) *= Cst 1
+
+            current <- allocate1_
+            current .= Cst 2
+
+            jump "computeCurrent"
+
+            "computeCurrent" ~> do
+                let prev  = Deref $ (Var results) `Offset` ((*.) current .-. Cst 1)
+                let pprev = Deref $ (Var results) `Offset` ((*.) current .-. Cst 2)
+                (Var results) `Offset` ((*.) current) *= prev .+. pprev
+                current .= (*.) current .+. (Cst 1)
+                jeq  ((*.) current) ((*.) n) "end"
+                jneq ((*.) current) ((*.) n) "computeCurrent"
+
+            "end" ~> do
+                free (Var n)
+
+    let finalState = snd (compileAndRun_ fibonacci)
+        value = do 
+            vec      <- finalState ^. register . (at 1)
+            maybeVal <- vec !? 11
+            val      <- maybeVal
+            preview _IntVal val
+
+    value @?= Just 144 -- fib 11 = 144
+
 
 

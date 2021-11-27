@@ -131,6 +131,8 @@ infix 4 .=
 (.=) name expr = Var name *= expr
 
 
+(*.) :: (IsTy ty) => IRName -> IRExpr label ty
+(*.) = Deref . Var 
 
 (~>) :: label -> IRProgram label () -> IRProgram label ()
 (~>) label scope = do 

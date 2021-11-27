@@ -65,6 +65,21 @@ library
 
 Test-Suite main-test
     type:               exitcode-stdio-1.0
+    default-extensions:
+      RecordWildCards
+      TemplateHaskell
+      TypeApplications
+      ScopedTypeVariables
+      PatternSynonyms
+      LambdaCase
+      Rank2Types
+      TypeFamilies
+      FlexibleContexts  
+      FlexibleInstances  
+      MultiParamTypeClasses  
+      UnicodeSyntax
+      TypeOperators
+      GeneralizedNewtypeDeriving
     main-is:            Main.hs
     other-modules:      Test.IR.Syntax
                         Test.IR.Backend.Haskell
@@ -78,6 +93,7 @@ Test-Suite main-test
                       , ImpLanguages
                       , containers
                       , lens
+                      , vector
                       , tasty
                       , tasty-hunit
                       , tasty-quickcheck

@@ -63,3 +63,7 @@ castAndCompare expr1 expr2 = (cast expr1) == (Just expr2)
 infixl 6 .+.
 (.+.) :: IRExpr label 'IntTy -> IRExpr label 'IntTy -> IRExpr label 'IntTy
 (.+.) = BinOp Add
+
+infixl 6 .-.
+(.-.) :: IRExpr label 'IntTy -> IRExpr label 'IntTy -> IRExpr label 'IntTy
+(.-.) = BinOp Sub
