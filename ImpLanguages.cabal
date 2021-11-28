@@ -29,6 +29,7 @@ library
                        IR.Backend.Haskell.Evaluate
                        IR.Backend.Haskell.Runtime
                        IR.Backend.Haskell.State
+                       Pretty
   hs-source-dirs:      lib
   -- other-extensions:
   default-extensions:
@@ -43,6 +44,7 @@ library
     PatternSynonyms
     LambdaCase
     Rank2Types
+    MultiWayIf
     TypeFamilies
     FlexibleContexts  
     FlexibleInstances  
@@ -83,6 +85,7 @@ Test-Suite main-test
     main-is:            Main.hs
     other-modules:      Test.IR.Syntax
                         Test.IR.Backend.Haskell
+                        Test.Pretty
     ghc-options:   -Wunused-imports
                    -Wincomplete-patterns 
                    -Wmissing-fields 
