@@ -6,7 +6,7 @@ import Pretty
 import IR.TypeSystem
 
 newtype IRName   = IRName Int deriving (Num, Eq, Show, Enum, Ord, PrintfArg) 
-newtype IRInt    = IRInt  Int deriving (Num, Eq, Show, Enum, Ord, PrintfArg) 
+newtype IRInt    = IRInt  Int deriving (Num, Eq, Show, Enum, Ord, PrintfArg, Real, Integral) 
 
 instance Pretty IRName where
      prettyShowPrec (IRName x) = ("$" ++ (show x), 10)
