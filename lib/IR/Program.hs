@@ -59,7 +59,7 @@ newName = do
     return name
 
 ------------------- INSTRUCTIONS -----------------
-allocate :: (Ord label) => IRName -> IRExpr label 'IntTy -> IRProgram label ()
+allocate :: (Ord label) => IRName -> IRExpr 'IntTy -> IRProgram label ()
 allocate name n = addToLabel $ Is name (Allocate n) 
 
 allocateN :: (Ord label) => IRName -> IRInt -> IRProgram label ()
@@ -68,7 +68,7 @@ allocateN name n = allocate name $ Cst n
 allocate1 :: (Ord label) => IRName -> IRProgram label ()
 allocate1 name = allocateN name 1 
 
-allocate_ :: (Ord label) => IRExpr label 'IntTy -> IRProgram label IRName
+allocate_ :: (Ord label) => IRExpr 'IntTy -> IRProgram label IRName
 allocate_ n = do
     name <- newName
     allocate name n
@@ -80,7 +80,7 @@ allocateN_ n = allocate_ $ Cst n
 allocate1_ :: (Ord label) => IRProgram label IRName
 allocate1_ = allocateN_ 1
 
-free :: (Ord label) => IRExpr label 'AddrTy -> IRProgram label ()
+free :: (Ord label) => IRExpr 'AddrTy -> IRProgram label ()
 free expr = addToLabel $ Free expr 
 
 jump :: (Ord label) => label -> IRProgram label ()
@@ -89,8 +89,8 @@ jump label = jcomp Eq (Cst 0) (Cst 0) label
 jcomp :: 
     (Ord label) 
  => IRCompOp 
- -> IRExpr label 'IntTy 
- -> IRExpr label 'IntTy 
+ -> IRExpr 'IntTy 
+ -> IRExpr 'IntTy 
  -> label 
  -> IRProgram label ()
 jcomp op expr1 expr2 label = addToLabel $ JComp op expr1 expr2 label  
@@ -98,16 +98,16 @@ jcomp op expr1 expr2 label = addToLabel $ JComp op expr1 expr2 label
 
 jeq :: 
     (Ord label) 
- => IRExpr label 'IntTy 
- -> IRExpr label 'IntTy 
+ => IRExpr 'IntTy 
+ -> IRExpr 'IntTy 
  -> label 
  -> IRProgram label ()
 jeq = jcomp Eq  
 
 jneq :: 
     (Ord label) 
- => IRExpr label 'IntTy 
- -> IRExpr label 'IntTy 
+ => IRExpr 'IntTy 
+ -> IRExpr 'IntTy 
  -> label 
  -> IRProgram label ()
 jneq = jcomp NEq  
@@ -117,8 +117,8 @@ jneq = jcomp NEq
 infix 4 *=
 (*=) 
     :: (Ord label, IsTy ty)
-    => IRExpr label 'AddrTy
-    -> IRExpr label ty
+    => IRExpr 'AddrTy
+    -> IRExpr ty
     -> IRProgram label ()
 (*=) name expr = addToLabel $ Set name expr
 
@@ -126,12 +126,12 @@ infix 4 .=
 (.=) 
     :: (Ord label, IsTy ty)
     => IRName
-    -> IRExpr label ty
+    -> IRExpr ty
     -> IRProgram label ()
 (.=) name expr = Var name *= expr
 
 
-(*.) :: (IsTy ty) => IRName -> IRExpr label ty
+(*.) :: (IsTy ty) => IRName -> IRExpr ty
 (*.) = Deref . Var 
 
 (~>) :: label -> IRProgram label () -> IRProgram label ()

@@ -34,9 +34,9 @@ compileInstr = _
 -- compileInstr (JComp _ _ _ _) = _
 -- compileInstr (Loc _ _)       = _
 
-compileExprInt :: IRExpr label 'IntTy -> Code
+compileExprInt :: IRExpr 'IntTy -> Code
 compileExprInt expr = compileExprInt_ expr >> ret where
-    compileExprInt_ :: IRExpr label 'IntTy -> Code
+    compileExprInt_ :: IRExpr 'IntTy -> Code
     compileExprInt_ (Cst x)   = mov rax (fromIntegral x)
     compileExprInt_ (Deref _) = _
     compileExprInt_ (BinOp op expr1 expr2) = do

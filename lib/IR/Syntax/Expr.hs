@@ -27,39 +27,39 @@ instance Pretty IRBinOp where
      prettyShowPrec Sub = ("-", 10)
 
 
-data IRExpr label exprTy where
+data IRExpr exprTy where
     -- Expressions
     Deref ::
          (IsTy ty)
-      => IRExpr label 'AddrTy
-      -> IRExpr label ty
+      => IRExpr 'AddrTy
+      -> IRExpr ty
 
     Offset ::
-         IRExpr label 'AddrTy
-      -> IRExpr label 'IntTy
-      -> IRExpr label 'AddrTy
+         IRExpr 'AddrTy
+      -> IRExpr 'IntTy
+      -> IRExpr 'AddrTy
 
     Cst :: 
          IRInt
-      -> IRExpr label 'IntTy
+      -> IRExpr 'IntTy
 
     BinOp :: 
          IRBinOp
-      -> IRExpr label 'IntTy
-      -> IRExpr label 'IntTy
-      -> IRExpr label 'IntTy
+      -> IRExpr 'IntTy
+      -> IRExpr 'IntTy
+      -> IRExpr 'IntTy
 
     Var :: 
          IRName
-      -> IRExpr label 'AddrTy
+      -> IRExpr 'AddrTy
 
     -- Allocation
-    Allocate :: IRExpr label 'IntTy  -> IRExpr label 'AddrTy 
+    Allocate :: IRExpr 'IntTy  -> IRExpr 'AddrTy 
 
-deriving instance (Eq label)   => Eq   (IRExpr label a)
-deriving instance (Show label) => Show (IRExpr label a)
+deriving instance Eq   (IRExpr a)
+deriving instance Show (IRExpr a)
 
-newtype PrettyShow label ty = PrettyShow {_unwrapPrettyShow :: IRExpr label ty -> (String, Int)}
+newtype PrettyShow label ty = PrettyShow {_unwrapPrettyShow :: IRExpr ty -> (String, Int)}
 
 wrapInParen prec expr
       | prec < 8  = "(" ++ expr ++ ")"
@@ -85,17 +85,17 @@ instance RecTy (PrettyShow label) where
           (Allocate n) -> ("allocate("++ prettyShow n ++")", 10) 
 
 
-instance (IsTy ty) => Pretty (IRExpr label ty) where
+instance (IsTy ty) => Pretty (IRExpr ty) where
      prettyShowPrec = _unwrapPrettyShow impl
 
 
-castAndCompare :: (Eq label, IsTy ty1, IsTy ty2) => IRExpr label ty1 -> IRExpr label ty2 -> Bool
+castAndCompare :: (IsTy ty1, IsTy ty2) => IRExpr ty1 -> IRExpr ty2 -> Bool
 castAndCompare expr1 expr2 = (cast expr1) == (Just expr2)
 
 infixl 6 .+.
-(.+.) :: IRExpr label 'IntTy -> IRExpr label 'IntTy -> IRExpr label 'IntTy
+(.+.) :: IRExpr 'IntTy -> IRExpr 'IntTy -> IRExpr 'IntTy
 (.+.) = BinOp Add
 
 infixl 6 .-.
-(.-.) :: IRExpr label 'IntTy -> IRExpr label 'IntTy -> IRExpr label 'IntTy
+(.-.) :: IRExpr 'IntTy -> IRExpr 'IntTy -> IRExpr 'IntTy
 (.-.) = BinOp Sub

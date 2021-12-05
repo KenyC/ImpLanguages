@@ -27,26 +27,26 @@ instance Pretty IRCompOp where
 
 
 data IRInstr label where
-    Free :: IRExpr label 'AddrTy -> IRInstr label 
+    Free :: IRExpr 'AddrTy -> IRInstr label 
 
     Is ::
          IRName
-      -> IRExpr label 'AddrTy 
+      -> IRExpr 'AddrTy 
       -> IRInstr label 
 
 
     -- Set
     Set ::
         (IsTy ty)
-     => IRExpr label 'AddrTy
-     -> IRExpr label ty
+     => IRExpr 'AddrTy
+     -> IRExpr ty
      -> IRInstr label 
 
     -- Control structures
     JComp ::
          IRCompOp
-      -> IRExpr label 'IntTy
-      -> IRExpr label 'IntTy
+      -> IRExpr 'IntTy
+      -> IRExpr 'IntTy
       -> label
       -> IRInstr label 
 

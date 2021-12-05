@@ -27,20 +27,20 @@ toData proxy = review (_unwrapPrism $ impl `asType` proxy)
 
 
 newtype Evaluable label ty = Evaluable {
-    _unwrapEvaluable :: IRExpr label ty -> Runtime label (ValueOf ty) 
+    _unwrapEvaluable :: IRExpr ty -> Runtime label (ValueOf ty) 
 }
 
 toIndex :: IRInt -> Int
 toIndex (IRInt x) = x 
 
 
-evaluateInt :: IRExpr label 'IntTy -> Runtime label (ValueOf 'IntTy)
+evaluateInt :: IRExpr 'IntTy -> Runtime label (ValueOf 'IntTy)
 evaluateInt (Deref addrExpr) = derefAddr @'IntTy Proxy addrExpr
 evaluateInt (Cst   value)    = return value
 evaluateInt (BinOp op expr1 expr2) = 
     (toHaskOp op) <$> (evaluateInt expr1) <*> (evaluateInt expr2)
 
-derefAddr :: (IsTy ty) => Proxy ty -> IRExpr label 'AddrTy -> Runtime label (ValueOf ty)
+derefAddr :: (IsTy ty) => Proxy ty -> IRExpr 'AddrTy -> Runtime label (ValueOf ty)
 derefAddr proxy addrExpr = do
     fullAddr@(IRAddrOffset addr offset) <- evaluateAddr addrExpr
     vals      <- maybeToError (UseUnallocated addr)  =<< uses register (Map.lookup addr)
@@ -50,7 +50,7 @@ derefAddr proxy addrExpr = do
     maybeToError (TyError) $ fromData proxy val 
 
 
-evaluateAddr :: IRExpr label 'AddrTy -> Runtime label (ValueOf 'AddrTy)
+evaluateAddr :: IRExpr 'AddrTy -> Runtime label (ValueOf 'AddrTy)
 evaluateAddr (Allocate intExpr) = do
     size_ <- evaluateInt intExpr
     let size = toIndex size_
@@ -70,7 +70,7 @@ evaluateAddr (Var name) = do
     addr <- maybeToError (UseUndefinedName name) maybeAddr
     return $ addr
 
-evaluate :: (IsTy ty) => IRExpr label ty -> Runtime label (ValueOf ty)
+evaluate :: (IsTy ty) => IRExpr ty -> Runtime label (ValueOf ty)
 evaluate = _unwrapEvaluable impl
 instance RecTy (Evaluable label) where
     int_  = Evaluable evaluateInt
