@@ -9,3 +9,6 @@ foreign import ccall "dynamic" callIOVal :: FunPtr (IO Word64) -> IO Word64
 instance Callable (IO Word64) where
   dynCCall = callIOVal
 
+
+sizeVar :: Word64
+sizeVar = 8 -- 8 bytes, 64 bits

@@ -73,6 +73,7 @@ Test-Suite main-test
     default-extensions:
       RecordWildCards
       TemplateHaskell
+      DataKinds
       TypeApplications
       ScopedTypeVariables
       PatternSynonyms

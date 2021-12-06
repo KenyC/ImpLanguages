@@ -76,7 +76,7 @@ addrExpr = testCase "Loading and moving things at addr" $ do
             lea rcx $ addr64 $ rbp - 20 -- get address where the value is located
             mov (addr64 $ rbp - 28) rcx -- place address on the stack at position 20 + 8 (64 bit address)
 
-            mov rcx (addr64 $ rbp - 28) -- load address in rcx
+            mov rcx (addr64 $ rbp - 28) -- load address stored in position 28 in rcx
             mov rax (addr64 $ rcx)      -- load value at address in a
             ret
 
