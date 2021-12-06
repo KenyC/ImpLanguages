@@ -61,7 +61,13 @@ compileExprAddr nameMap (Deref exprAddr) = do
     mov rax $ addr64 rax
 compileExprAddr nameMap (Offset exprAddr exprOffset) = do
     compileExprAddr nameMap exprAddr
-    mov rcx rax
+    push rax
+    compileExprInt nameMap exprOffset
+    shl rax 3 -- multiply by 8, so as to get to 64 bits-aligned address
+    pop rcx
+    add rax rcx
+
+
 compileExprAddr nameMap (Var name) = do
     let stackPos = nameMap Map.! name
     mov rax $ addr64 $ rbp - (fromIntegral $ stackPos * sizeVar)
@@ -75,12 +81,22 @@ instance RecTy CompileExpr where
 compileExpr :: (IsTy ty) => NameMap -> IRExpr ty -> Code
 compileExpr = _unwrapCompileExpr impl
 
-selfContainedExpr :: (IsTy ty) => NameMap -> IRExpr ty -> Code
-selfContainedExpr nameMap expr = saveNonVolatile $ do
+makeSelfContained :: NameMap -> Code -> Code
+makeSelfContained nameMap body = saveNonVolatile $ do
     mov rbp rsp
-    sub rsp (fromIntegral $ 10 * sizeVar)
+    when (not $ Map.null nameMap) $ do
+        let maxPos = maximum $ Map.elems nameMap  
+        let beginningStack = (maxPos + 1) * sizeVar
+        sub rsp (fromIntegral beginningStack)
+
+    body
+    mov rsp rbp
+
+
+selfContainedExpr :: (IsTy ty) => NameMap -> IRExpr ty -> Code
+selfContainedExpr nameMap expr = 
+    makeSelfContained nameMap $ 
     compileExpr nameMap expr
-    mov rsp rbp 
 
 toAsmOp :: IRBinOp -> Operand 'RW 'S64 -> Operand r 'S64 -> Code
 toAsmOp Add = add
