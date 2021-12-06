@@ -25,6 +25,7 @@ simpleExprTest :: TestTree
 simpleExprTest = testCase "Simple constant expr" $ do
     let nMap = Map.empty
     let expr = Cst 1
+    -- liftIO $ print $ selfContainedExpr nMap expr
     val <- liftIO $ (X86.compile (selfContainedExpr nMap expr) :: IO Word64) 
     val @?= 1 
 
@@ -35,6 +36,10 @@ simpleExprTest = testCase "Simple constant expr" $ do
     let expr = (Cst 1) .+. ((Cst 5) .-. (Cst 2))
     val <- liftIO $ (X86.compile (selfContainedExpr nMap expr) :: IO Word64) 
     val @?= 4
+
+    let expr = ((Cst 432) .-. (Cst 1)) .+. ((Cst 5) .-. (Cst 2))
+    val <- liftIO $ (X86.compile (selfContainedExpr nMap expr) :: IO Word64) 
+    val @?= 434
 
 addrExprTest :: TestTree
 addrExprTest = testCase "Addr expr" $ do
@@ -56,7 +61,6 @@ addrExprTest = testCase "Addr expr" $ do
         -- expr = Cst 23
     
     let var :: IRName = 1
-
     let expr :: IRExpr 'IntTy 
         expr = Deref (Var var)
     let posVar = 3
@@ -70,4 +74,24 @@ addrExprTest = testCase "Addr expr" $ do
 
     val <- liftIO $ (X86.compile code :: IO Word64)
     val @?= 321
+
+    -- a complex expression featuring push and move from local stack
+    let expr :: IRExpr 'IntTy 
+        expr = Cst 1 .+. (Deref (Var var) .+. (Cst 1 .+. Deref (Var var)))
+    let code = saveNonVolatile $ do
+                    -- prologue
+                    mov rbp rsp
+                    sub rsp (fromIntegral $ 10 * sizeVar)
+
+                    placeValueOnStackAt 1 20
+                    loadStackAddrAt posVar 1 -- loading the address of 1 into position 3 (i.e. $3 = &$1) 
+                    compileExpr nameMap expr
+
+                    -- epilogue
+                    mov rsp rbp
+
+
+    -- liftIO $ print code
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val @?= 42
     return ()

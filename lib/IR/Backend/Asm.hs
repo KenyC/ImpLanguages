@@ -7,7 +7,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import CodeGen.X86
-import CodeGen.X86.Asm
 
 import IR.Syntax
 import IR.Backend.Asm.RunCode
@@ -48,16 +47,21 @@ compileExprInt nameMap (Deref addrExpr) = do
     compileExprAddr nameMap addrExpr
     mov rax $ addr64 rax
 compileExprInt nameMap (BinOp op expr1 expr2) = do
+    compileExprInt nameMap expr1 
+    push rax
     compileExprInt nameMap expr2 
     mov rcx rax
-    compileExprInt nameMap expr1 
+    pop rax
     toAsmOp op rax rcx 
 
 
 compileExprAddr :: NameMap -> IRExpr 'AddrTy -> Code
-compileExprAddr nameMap (Deref _) = do
+compileExprAddr nameMap (Deref exprAddr) = do
+    compileExprAddr nameMap exprAddr
     mov rax $ addr64 rax
-compileExprAddr _ (Offset _ _) = _Offset
+compileExprAddr nameMap (Offset exprAddr exprOffset) = do
+    compileExprAddr nameMap exprAddr
+    mov rcx rax
 compileExprAddr nameMap (Var name) = do
     let stackPos = nameMap Map.! name
     mov rax $ addr64 $ rbp - (fromIntegral $ stackPos * sizeVar)
@@ -72,7 +76,11 @@ compileExpr :: (IsTy ty) => NameMap -> IRExpr ty -> Code
 compileExpr = _unwrapCompileExpr impl
 
 selfContainedExpr :: (IsTy ty) => NameMap -> IRExpr ty -> Code
-selfContainedExpr nameMap expr = saveNonVolatile $ compileExpr nameMap expr
+selfContainedExpr nameMap expr = saveNonVolatile $ do
+    mov rbp rsp
+    sub rsp (fromIntegral $ 10 * sizeVar)
+    compileExpr nameMap expr
+    mov rsp rbp 
 
 toAsmOp :: IRBinOp -> Operand 'RW 'S64 -> Operand r 'S64 -> Code
 toAsmOp Add = add
