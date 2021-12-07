@@ -76,7 +76,11 @@ compileInstr nameMap (Is name exprAddr) = do
     let stackPos = nameMap Map.! name
     mov (addrStackPos stackPos) rax
 
-compileInstr nameMap (Free _)        = _Free
+compileInstr nameMap (Free exprAddr) = do
+    compileExpr nameMap exprAddr
+    mov arg1 rax -- move address to #1 arg (rdi on Linux)
+    callFree rcx
+
 compileInstr nameMap (JComp _ _ _ _) = _JComp
 compileInstr nameMap (Loc _ instr) = compileInstr nameMap instr
 
@@ -86,9 +90,11 @@ type NameMap  = Map IRName StackPos
 
 compileExprInt :: NameMap -> IRExpr 'IntTy -> Code
 compileExprInt _ (Cst x)   = mov rax (fromIntegral x)
+
 compileExprInt nameMap (Deref addrExpr) = do
     compileExprAddr nameMap addrExpr
     mov rax $ addr64 rax
+
 compileExprInt nameMap (BinOp op expr1 expr2) = do
     compileExprInt nameMap expr1 
     push rax
@@ -114,7 +120,12 @@ compileExprAddr nameMap (Offset exprAddr exprOffset) = do
 compileExprAddr nameMap (Var name) = do
     let stackPos = nameMap Map.! name
     mov rax $ addr64 $ rbp - (fromIntegral $ stackPos * sizeVar)
-compileExprAddr _ (Allocate _) = _Allocate
+
+compileExprAddr nameMap (Allocate exprInt) = do
+    compileExprInt nameMap exprInt
+    mov arg1 rax
+    shl arg1 3    -- * sizeof(IRInt) = * 8 bytes
+    callMalloc rcx
 
 newtype CompileExpr ty = CompileExpr {_unwrapCompileExpr :: NameMap -> IRExpr ty -> Code}
 instance RecTy CompileExpr where
