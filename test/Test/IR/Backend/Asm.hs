@@ -2,7 +2,9 @@ module Test.IR.Backend.Asm where
 
 import Control.Monad.IO.Class
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Word
+import Data.List (nub)
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -20,6 +22,7 @@ allTests = testGroup
                 "Assembly Runtime Backend"
                 [ simpleExprTest 
                 , addrExprTest   
+                , nameMapTest  
                 , offsetExprTest   ]
 
 simpleExprTest :: TestTree
@@ -118,6 +121,25 @@ offsetExprTest = testCase "Offset expr" $ do
     val <- liftIO $ (X86.compile code :: IO Word64)
     val @?= 5
 
+
+nameMapTest :: TestTree
+nameMapTest = testCase "Make name map test" $ do
+    let program = mkProg $ do
+            0 .= Cst 1 .+. (Deref $ Var 3)
+            (Var 4) *= (Allocate (Deref $ Var 3))
+
+            "scope1" ~> do
+                4 .= Allocate (Deref $ Var 5)
+
+    let nameMap = makeNameMap program
+
+    Set.fromList (Map.keys nameMap) @?= Set.fromList [0, 3, 4, 5]
+
+    -- no duplicates
+    length (Map.keys nameMap) @?= length (nub $ Map.elems nameMap) 
+
+    -- minimal
+    maximum nameMap @?= (fromIntegral $ Map.size nameMap) 
 
 ------------------- UTILS -----------------
 

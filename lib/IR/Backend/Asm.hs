@@ -3,7 +3,8 @@ module IR.Backend.Asm where
 import Control.Monad
 import Data.Default
 import Data.Word
-import Data.Map (Map)
+import Data.Map  (Map)
+import Data.List (nub)
 import qualified Data.Map as Map
 
 import CodeGen.X86
@@ -11,15 +12,43 @@ import CodeGen.X86
 import IR.Syntax
 import IR.Backend.Asm.RunCode
 
-compile :: 
-    ( Default label
-    , Ord     label
-    , Show    label)
- => Module label 
- -> Maybe Code
-compile mainModule = do
-    scope <- Map.lookup def mainModule 
-    return $ forM_ scope compileInstr
+-- compile :: 
+--     ( Default label
+--     , Ord     label
+--     , Show    label)
+--  => Module label 
+--  -> Maybe Code
+-- compile mainModule = do
+--     scope <- Map.lookup def mainModule 
+--     return $ forM_ scope compileInstr
+
+makeNameMap :: Module label -> NameMap
+makeNameMap mainModule = 
+    Map.fromList   $ 
+    flip zip [1..] $! -- not sure, seems like the best way to get early calculation of this massive thunk 
+    nub            $ do
+        scope <- Map.elems mainModule
+        instr <- scope
+
+        let collectNamesInstr :: IRInstr label -> [IRName]
+            collectNamesInstr (Set expr1 expr2)        = collectNamesExpr expr1 ++ collectNamesExpr expr2 
+            collectNamesInstr (Free expr1)             = collectNamesExpr expr1
+            collectNamesInstr (Is name expr1)          = name:(collectNamesExpr expr1)
+            collectNamesInstr (JComp _ expr1 expr2 _)  = collectNamesExpr expr1 ++ collectNamesExpr expr2 
+            collectNamesInstr (Loc _ instr)            = collectNamesInstr instr
+
+            collectNamesExpr :: IRExpr ty -> [IRName]
+            collectNamesExpr (Deref expr)          = collectNamesExpr expr
+            collectNamesExpr (Allocate expr)       = collectNamesExpr expr
+            collectNamesExpr (Offset expr1 expr2)  = collectNamesExpr expr1 ++ collectNamesExpr expr2 
+            collectNamesExpr (Cst _)               = []
+            collectNamesExpr (BinOp _ expr1 expr2) = collectNamesExpr expr1 ++ collectNamesExpr expr2 
+            collectNamesExpr (Var var)             = [var]
+
+
+        collectNamesInstr instr
+
+
 
 -- newtype AsmGen = AsmGen {
 --     _unwrapAsmGen :: 
