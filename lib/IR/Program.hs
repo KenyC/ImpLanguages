@@ -3,6 +3,7 @@ module IR.Program where
 import Control.Lens hiding ((*=))
 import Control.Monad.State.Strict
 import Data.Default
+import Data.Maybe   (fromMaybe)
 import qualified Data.Map as Map
 
 import IR.TypeSystem
@@ -40,7 +41,13 @@ mkProg =
     (flip execState initialProgramState) . 
     unwrapProgram
 
-
+mkScope :: (Default label, Ord label) => IRProgram label a -> [IRInstr label]
+mkScope =
+    fromMaybe []                         .
+    Map.lookup def                       .
+    view moduleProg                      .
+    (flip execState initialProgramState) . 
+    unwrapProgram
 
 ------------------- UTILS -----------------
 

@@ -48,7 +48,11 @@ makeNameMap mainModule =
 
         collectNamesInstr instr
 
-
+reserveSpaceForNames :: NameMap -> Code
+reserveSpaceForNames nameMap = do
+    when (not $ Map.null nameMap) $ do
+        let maxStackPos = (maximum nameMap + 1) * sizeVar
+        sub rsp $ fromIntegral maxStackPos
 
 -- newtype AsmGen = AsmGen {
 --     _unwrapAsmGen :: 
@@ -58,13 +62,23 @@ makeNameMap mainModule =
 --     , Monad
 --     , )
 
-compileInstr :: IRInstr label -> Code
-compileInstr = _
--- compileInstr (Set _ _) = _
--- compileInstr (Free _)        = _
--- compileInstr (Is _ _)        = _
--- compileInstr (JComp _ _ _ _) = _
--- compileInstr (Loc _ _)       = _
+compileInstr :: NameMap -> IRInstr label -> Code
+-- compileInstr = _
+compileInstr nameMap (Set exprAddr expr) = do
+    compileExprAddr nameMap exprAddr
+    push rax
+    compileExpr nameMap expr
+    pop rcx
+    mov (addr64 rcx) rax
+
+compileInstr nameMap (Is name exprAddr) = do
+    compileExprAddr nameMap exprAddr
+    let stackPos = nameMap Map.! name
+    mov (addrStackPos stackPos) rax
+
+compileInstr nameMap (Free _)        = _Free
+compileInstr nameMap (JComp _ _ _ _) = _JComp
+compileInstr nameMap (Loc _ instr) = compileInstr nameMap instr
 
 
 type StackPos = Word64
@@ -113,14 +127,10 @@ compileExpr = _unwrapCompileExpr impl
 makeSelfContained :: NameMap -> Code -> Code
 makeSelfContained nameMap body = saveNonVolatile $ do
     mov rbp rsp
-    when (not $ Map.null nameMap) $ do
-        let maxPos = maximum $ Map.elems nameMap  
-        let beginningStack = (maxPos + 1) * sizeVar
-        sub rsp (fromIntegral beginningStack)
+    reserveSpaceForNames nameMap
 
     body
     mov rsp rbp
-
 
 selfContainedExpr :: (IsTy ty) => NameMap -> IRExpr ty -> Code
 selfContainedExpr nameMap expr = 
@@ -130,3 +140,7 @@ selfContainedExpr nameMap expr =
 toAsmOp :: IRBinOp -> Operand 'RW 'S64 -> Operand r 'S64 -> Code
 toAsmOp Add = add
 toAsmOp Sub = sub
+
+
+addrStackPos :: StackPos -> Operand r 'S64
+addrStackPos pos = addr64 $ rbp - (fromIntegral $ pos * sizeVar)

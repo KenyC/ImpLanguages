@@ -1,5 +1,6 @@
 module Test.IR.Backend.Asm where
 
+import Control.Monad
 import Control.Monad.IO.Class
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -23,7 +24,8 @@ allTests = testGroup
                 [ simpleExprTest 
                 , addrExprTest   
                 , nameMapTest  
-                , offsetExprTest   ]
+                , offsetExprTest   
+                , simpleInstrTest   ]
 
 simpleExprTest :: TestTree
 simpleExprTest = testCase "Simple constant expr" $ do
@@ -140,6 +142,62 @@ nameMapTest = testCase "Make name map test" $ do
 
     -- minimal
     maximum nameMap @?= (fromIntegral $ Map.size nameMap) 
+
+simpleInstrTest :: TestTree
+simpleInstrTest = testCase "Test simple instructions (w/o allocation)" $ do
+    let var1, var2, var3 :: IRName
+        var1 = 0
+        var2 = 0
+        var3 = 0
+    let program :: [IRInstr ()]
+        program = mkScope $ do
+                     var1 .= Cst 3
+        nameMap = Map.fromList [(var1, 1)]
+        code = makeSelfContained nameMap $ do
+                    -- reserve two more spaces on the stack
+                    sub rsp $ fromIntegral $ (2 * 8 :: Word64) 
+                    -- fill "var1" with address to new spaces
+                    loadStackAddrAt 1 3
+
+                    forM_ program $ \instr ->
+                        compileInstr nameMap instr
+
+                    -- return value at stack pos 3
+                    mov rax (addrStackPos 3)
+
+
+
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val @?= 3
+
+
+
+    let program :: [IRInstr ()]
+        program = mkScope $ do
+                     var1 .= Cst 3
+                     var2 .= (Deref $ Var var1) .+. (Cst 1)
+        nameMap = Map.fromList [(var1, 1), (var2, 2)]
+        code = makeSelfContained nameMap $ do
+                    -- reserve two more spaces on the stack
+                    sub rsp $ fromIntegral $ (2 * 8 :: Word64) 
+                    -- fill "var1" with address to new spaces
+                    loadStackAddrAt 1 3
+                    loadStackAddrAt 2 4
+
+                    forM_ program $ \instr ->
+                        compileInstr nameMap instr
+
+                    -- return value at stack pos 3
+                    mov rax (addrStackPos 4)
+
+
+
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val @?= 4
+
+    
+
+
 
 ------------------- UTILS -----------------
 
