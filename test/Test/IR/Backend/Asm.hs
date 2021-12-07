@@ -25,7 +25,8 @@ allTests = testGroup
                 , addrExprTest   
                 , nameMapTest  
                 , offsetExprTest   
-                , simpleInstrTest   ]
+                , simpleInstrTest   
+                , allocateFreeTest   ]
 
 simpleExprTest :: TestTree
 simpleExprTest = testCase "Simple constant expr" $ do
@@ -222,6 +223,55 @@ simpleInstrTest = testCase "Test simple instructions (w/o allocation)" $ do
     val @?= 34
 
     
+allocateFreeTest :: TestTree
+allocateFreeTest = testCase "Test allocation and free'ing" $ do
+
+    let var1, var2, var3 :: IRName
+        var1:var2:var3:_ = [0..]
+    let program :: [IRInstr ()]
+        program = mkScope $ do
+                     var1 `is` Allocate (Cst 1)
+                     var1 .= Cst 345
+                     var2 .= Deref (Var var1) `asType` intTy
+                     free (Var var1)
+        nameMap = Map.fromList [(var1, 1), (var2, 2)]
+        code = makeSelfContained nameMap $ do
+                    sub rsp $ fromIntegral $ (1 * 8 :: Word64) 
+                    loadStackAddrAt 2 3
+
+
+                    forM_ program $ \instr ->
+                        compileInstr nameMap instr
+
+                    -- return value at stack pos 1
+                    mov rax (addrStackPos 3)
+                    -- push rax
+
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val @?= 345
+
+    let program :: [IRInstr ()]
+        program = mkScope $ do
+                     var1 `is` Allocate (Cst 2)
+                     var1 .= Cst 345
+                     (Var var1) `Offset` (Cst 1) *= Cst 327
+                     var2 .= Deref (Var var1 `Offset` (Cst 1)) `asType` intTy
+                     free (Var var1)
+        nameMap = Map.fromList [(var1, 1), (var2, 2)]
+        code = makeSelfContained nameMap $ do
+                    sub rsp $ fromIntegral $ (1 * 8 :: Word64) 
+                    loadStackAddrAt 2 3
+
+
+                    forM_ program $ \instr ->
+                        compileInstr nameMap instr
+
+                    -- return value at stack pos 1
+                    mov rax (addrStackPos 3)
+                    -- push rax
+
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val @?= 327
 
 
 
