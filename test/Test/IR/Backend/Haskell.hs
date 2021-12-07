@@ -34,7 +34,7 @@ goodProgramTest = testCase "Good programs" $ do
 
     let program :: Module Int
         program = mkProg $ do
-            a <- allocateN_ 4
+            a <- allocate_ 4
             (Var a) `Offset` (Cst 3) *= Cst 32
             free (Var a)
 
@@ -82,7 +82,7 @@ usingUnassignedValuesTest = testCase "Using unassigned values" $ do
 
     let program :: Module Int
         program = mkProg $ do
-            a <- allocateN_ 2
+            a <- allocate_ 2
             b <- allocate1_ 
             a .= Cst 32
             b .= Deref ((Var a) `Offset` (Cst 1)) `asType` intTy
@@ -137,7 +137,7 @@ outOfRange :: TestTree
 outOfRange = testCase "Out of range" $ do
     let program :: Module Int
         program = mkProg $ do
-            a <- allocateN_ 24 
+            a <- allocate_ 24 
             (Var a) `Offset` (Cst 23) *= Cst 2
             free (Var a)
 
@@ -145,7 +145,7 @@ outOfRange = testCase "Out of range" $ do
 
     let program :: Module Int
         program = mkProg $ do
-            a <- allocateN_ 24 
+            a <- allocate_ 24 
             (Var a) `Offset` (Cst 24) *= Cst 2
             free (Var a)
 

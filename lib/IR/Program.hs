@@ -65,33 +65,50 @@ newName = do
     modifying nextName (+1)
     return name
 
-------------------- INSTRUCTIONS -----------------
-allocate :: (Ord label) => IRName -> IRExpr 'IntTy -> IRProgram label ()
-allocate name n = addToLabel $ Is name (Allocate n) 
+------------------- CONVENIENCE POLYMORPHISM -----------------
 
-allocateN :: (Ord label) => IRName -> IRInt -> IRProgram label ()
-allocateN name n = allocate name $ Cst n 
+class LiftToIntExpr a where
+    liftToExpr :: a -> IRExpr 'IntTy
+
+instance LiftToExpr (IRExpr 'IntTy) where
+    liftToExpr = id
+
+instance LiftToExpr IRInt where 
+    liftToExpr = Cst
+
+instance LiftToExpr 'AddrTy IRName where 
+    liftToExpr = Var
+
+------------------- INSTRUCTIONS -----------------
+allocate :: 
+    (Ord label, LiftToExpr 'IntTy a) 
+ => IRName -> a -> IRProgram label ()
+allocate name n = addToLabel $ Is name (Allocate $ liftToExpr n) 
+
 
 allocate1 :: (Ord label) => IRName -> IRProgram label ()
-allocate1 name = allocateN name 1 
+allocate1 name = allocate name (1 :: IRInt) 
 
-allocate_ :: (Ord label) => IRExpr 'IntTy -> IRProgram label IRName
+allocate_ :: 
+     (Ord label, LiftToExpr 'IntTy a) 
+  => a -> IRProgram label IRName
 allocate_ n = do
     name <- newName
     allocate name n
     return name
 
-allocateN_ :: (Ord label) => IRInt -> IRProgram label IRName
-allocateN_ n = allocate_ $ Cst n
-
 allocate1_ :: (Ord label) => IRProgram label IRName
-allocate1_ = allocateN_ 1
+allocate1_ = allocate_ (1 :: IRInt)
 
-is :: (Ord label) => IRName -> IRExpr 'AddrTy -> IRProgram label () 
-is name expr = addToLabel $ Is name expr
+is :: 
+     (Ord label, LiftToExpr 'AddrTy a) 
+  => IRName -> a -> IRProgram label () 
+is name expr = addToLabel $ Is name $ liftToExpr expr
 
-free :: (Ord label) => IRExpr 'AddrTy -> IRProgram label ()
-free expr = addToLabel $ Free expr 
+free :: 
+    (Ord label, LiftToExpr 'AddrTy a) 
+ => a -> IRProgram label ()
+free expr = addToLabel $ Free $ liftToExpr expr 
 
 jump :: (Ord label) => label -> IRProgram label ()
 jump label = jcomp Eq (Cst 0) (Cst 0) label 
