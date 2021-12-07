@@ -146,9 +146,7 @@ nameMapTest = testCase "Make name map test" $ do
 simpleInstrTest :: TestTree
 simpleInstrTest = testCase "Test simple instructions (w/o allocation)" $ do
     let var1, var2, var3 :: IRName
-        var1 = 0
-        var2 = 0
-        var3 = 0
+        var1:var2:var3:_ = [0..]
     let program :: [IRInstr ()]
         program = mkScope $ do
                      var1 .= Cst 3
@@ -194,6 +192,34 @@ simpleInstrTest = testCase "Test simple instructions (w/o allocation)" $ do
 
     val <- liftIO $ (X86.compile code :: IO Word64)
     val @?= 4
+
+    
+
+    let program :: [IRInstr ()]
+        program = mkScope $ do
+                     var1 .= Cst 34
+                     var2 .= Cst 47
+                     var1 `is` Var var2
+                     var1 .= Cst 75   -- no change in value expected at original pointed adress of "var1"
+
+        nameMap = Map.fromList [(var1, 1), (var2, 2)]
+        -- nameMap = Map.fromList [(var1, 1)]
+        code = makeSelfContained nameMap $ do
+                    -- reserve two more spaces on the stack
+                    sub rsp $ fromIntegral $ (2 * 8 :: Word64) 
+                    -- fill "var1" with address to new spaces
+                    loadStackAddrAt 1 3
+                    loadStackAddrAt 2 4
+
+                    forM_ program $ \instr ->
+                        compileInstr nameMap instr
+
+                    -- return value at stack pos 3
+                    mov rax (addrStackPos 3)
+
+
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val @?= 34
 
     
 

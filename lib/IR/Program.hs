@@ -87,11 +87,15 @@ allocateN_ n = allocate_ $ Cst n
 allocate1_ :: (Ord label) => IRProgram label IRName
 allocate1_ = allocateN_ 1
 
+is :: (Ord label) => IRName -> IRExpr 'AddrTy -> IRProgram label () 
+is name expr = addToLabel $ Is name expr
+
 free :: (Ord label) => IRExpr 'AddrTy -> IRProgram label ()
 free expr = addToLabel $ Free expr 
 
 jump :: (Ord label) => label -> IRProgram label ()
 jump label = jcomp Eq (Cst 0) (Cst 0) label 
+
 
 jcomp :: 
     (Ord label) 
