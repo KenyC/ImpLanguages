@@ -13,6 +13,7 @@ allTests :: TestTree
 allTests = testGroup 
                 "Run assembly code (test x86-64)"
                 [ simpleExpr 
+                , callCFromAsm  
                 , addrExpr   ]
 
 simpleExpr :: TestTree
@@ -83,3 +84,14 @@ addrExpr = testCase "Loading and moving things at addr" $ do
     retVal <- liftIO $ (compile program :: IO Word64)        
     retVal @?= 314
 
+
+callCFromAsm :: TestTree
+callCFromAsm = testCase "Calling C functions" $ do
+    let program = saveNonVolatile $ do
+            mov rax  234
+            mov arg1 321
+            callAbs rcx
+
+    retVal <- liftIO $ (compile program :: IO Word64)        
+    -- This is meant to force evaluation of retVal
+    retVal @?= 321
