@@ -30,7 +30,8 @@ allTests = testGroup
                 , simpleInstrTest   
                 , allocateFreeTest  
                 , returnInstrTest   
-                , simpleJumpTest   ]
+                , simpleJumpTest  
+                , complexProgram   ]
 
 simpleExprTest :: TestTree
 simpleExprTest = testCase "Simple constant expr" $ do
@@ -381,6 +382,49 @@ returnInstrTest = testCase "Test return instructions" $ do
     let Right code = compile program
     val <- liftIO $ (X86.compile code :: IO Word64)
     val  @?= 555   -- just to check that there are no exception
+
+complexProgram :: TestTree
+complexProgram = testCase "Complex program" $ do
+    let fibonacci :: Module String
+        fibonacci = mkProg $ do
+            n <- allocate1_
+            n .= Cst 12
+
+            prev      <- allocate1_
+            current   <- allocate1_
+            swapBuffer <- allocate1_ 
+
+            prev    .= Cst 0
+            current .= Cst 1
+
+            jump "loop"
+
+            "loop" ~> do
+                jeq ((*.) n) (Cst 0) "end"
+
+                swapBuffer .= (*.) current `asType` intTy
+                current    .= (*.) current .+. (*.) prev 
+                prev       .= (*.) swapBuffer `asType` intTy
+
+                n .= (*.) n .-. (Cst 1)
+                jump "loop"
+
+
+            "end" ~> do
+                out $ (*.) current
+                free $ Var prev
+                free $ Var current
+                free $ Var swapBuffer
+                free $ Var n
+
+
+    void (compile fibonacci) @?= Right ()
+
+    let Right code = compile fibonacci
+    liftIO $ putStrLn ""
+    liftIO $ print code
+    value <- liftIO $ (X86.compile code :: IO Word64)
+    value @?= 234 -- fib 12 = 233
 
 
 
