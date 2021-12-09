@@ -302,6 +302,21 @@ simpleJumpTest = testCase "Test simple jumps" $ do
     val `seq` 0 @?= 0  -- just to check that there are no exception
 
 
+    let program = mkProg $ do
+            out $ Cst 4
+            jump "existing_label"
+
+            "existing_label" ~> do
+                out $ Cst 43
+
+    void (compile program) @?= Right ()
+
+
+    let Right code = compile program
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val @?= 43
+
+
 returnInstrTest :: TestTree
 returnInstrTest = testCase "Test return instructions" $ do
 
@@ -348,6 +363,24 @@ returnInstrTest = testCase "Test return instructions" $ do
     let Right code = compile program
     val <- liftIO $ (X86.compile code :: IO Word64)
     val  @?= 5555   -- just to check that there are no exception
+
+
+    let program :: Module ()
+        program = mkProg $ do
+            var <- allocate1_
+            var .= Cst 456
+            out $ (*.) var
+
+            var .= Cst 555
+            out $ (*.) var
+            free (Var var)
+
+
+    void (compile program) @?= Right ()
+
+    let Right code = compile program
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val  @?= 555   -- just to check that there are no exception
 
 
 
