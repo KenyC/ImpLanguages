@@ -47,11 +47,13 @@ compile mainModule = do
 
     let leaveProcedure = do
             mov rax (addrStackPos posOutValue)
+            mov rsp rbp
             epilogue 
             ret
 
     return $ do
         prologue
+        mov rbp rsp
         reserveSpaceForNames nameMap
 
         forM_ scopes $ \(_, scope) -> do

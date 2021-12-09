@@ -29,6 +29,7 @@ allTests = testGroup
                 , offsetExprTest   
                 , simpleInstrTest   
                 , allocateFreeTest  
+                , returnInstrTest   
                 , simpleJumpTest   ]
 
 simpleExprTest :: TestTree
@@ -299,6 +300,54 @@ simpleJumpTest = testCase "Test simple jumps" $ do
     let Right code = compile program
     val <- liftIO $ (X86.compile code :: IO ())
     val `seq` 0 @?= 0  -- just to check that there are no exception
+
+
+returnInstrTest :: TestTree
+returnInstrTest = testCase "Test return instructions" $ do
+
+    let program :: Module ()
+        program = mkProg $ do
+            out $ Cst 1234
+
+
+    void (compile program) @?= Right ()
+
+    let Right code = compile program
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val  @?= 1234   -- just to check that there are no exception
+
+
+    let program :: Module ()
+        program = mkProg $ do
+            var <- allocate1_
+            var .= Cst 4321
+            out $ (*.) var
+            free (Var var)
+
+
+    void (compile program) @?= Right ()
+
+    let Right code = compile program
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val  @?= 4321   -- just to check that there are no exception
+
+
+    let program :: Module ()
+        program = mkProg $ do
+            var <- allocate1_
+            var .= Cst 4321
+
+            var2 <- allocate1_
+            var2 .= Cst 1234
+            out $ ((*.) var) .+. ((*.) var2)
+            free (Var var)
+
+
+    void (compile program) @?= Right ()
+
+    let Right code = compile program
+    val <- liftIO $ (X86.compile code :: IO Word64)
+    val  @?= 5555   -- just to check that there are no exception
 
 
 

@@ -93,6 +93,9 @@ is name expr = addToLabel $ Is name expr
 free :: (Ord label) => IRExpr 'AddrTy -> IRProgram label ()
 free expr = addToLabel $ Free expr 
 
+out :: (Ord label) => IRExpr 'IntTy -> IRProgram label ()
+out expr = addToLabel $ Out expr 
+
 jump :: (Ord label) => label -> IRProgram label ()
 jump label = jcomp Eq (Cst 0) (Cst 0) label 
 
