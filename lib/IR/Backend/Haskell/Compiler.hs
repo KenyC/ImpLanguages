@@ -5,6 +5,7 @@ import Control.Monad
 import Control.Monad.Except
 import qualified Data.Map as Map
 
+import qualified IR.Backend.Static as Static
 import IR.Backend.Haskell.State
 import IR.Syntax
 
@@ -16,22 +17,11 @@ checkLeaks program = do
         throwError $ MemoryLeak remainingMemory
     return value
 
-checkLinkInScope 
-    :: (Ord label) 
-    => Module label 
-    -> IRInstr label 
-    -> [label]
-checkLinkInScope mainModule scope = case scope of
-    JComp _ _ _ l  -> if l `Map.member` mainModule then [] else [l]
-    _              -> []
+
 
 checkLink :: (Ord label) => Runtime label a -> Runtime label a 
 checkLink prog = do
     main <- use mainModule
-    let labels = mconcat $ [ checkLinkInScope main instruction 
-                           | instructions <- Map.elems main 
-                           , instruction  <- instructions   ]
+    Static.checkLink main $ throwError . UndefinedLabels
 
-    when (not $ null labels) $
-        throwError $ UndefinedLabels labels
     prog

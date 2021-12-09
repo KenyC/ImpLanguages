@@ -25,9 +25,9 @@ library
     CodeGen.X86
     CodeGen.X86.Asm
     CodeGen.X86.CodeGen
+    CodeGen.X86.CallConv
   other-modules:
     Control.DeeperSeq
-    CodeGen.X86.CallConv
     CodeGen.X86.FFI
     CodeGen.X86.Utils
 

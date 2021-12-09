@@ -145,8 +145,12 @@ infix 4 .=
 (*.) :: (IsTy ty) => IRName -> IRExpr ty
 (*.) = Deref . Var 
 
-(~>) :: label -> IRProgram label () -> IRProgram label ()
+(~>) :: (Ord label) => label -> IRProgram label () -> IRProgram label ()
 (~>) label scope = do 
+    -- creating new label
+    modifying moduleProg $ Map.insert label []
+
+    -- changing current label ; adding scope ; restotring previous state
     oldLabel <- use currentLabel
     assign currentLabel label
     scope

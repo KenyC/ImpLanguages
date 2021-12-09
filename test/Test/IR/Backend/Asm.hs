@@ -5,6 +5,7 @@ import Control.Monad.IO.Class
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Word
+import Data.Default
 import Data.List (nub)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -12,6 +13,7 @@ import Test.Tasty.HUnit
 import CodeGen.X86 hiding (compile)
 import qualified CodeGen.X86 as X86
 
+import Pretty
 import IR.Syntax
 import IR.Program
 import IR.Backend.Asm
@@ -26,7 +28,8 @@ allTests = testGroup
                 , nameMapTest  
                 , offsetExprTest   
                 , simpleInstrTest   
-                , allocateFreeTest   ]
+                , allocateFreeTest  
+                , simpleJumpTest   ]
 
 simpleExprTest :: TestTree
 simpleExprTest = testCase "Simple constant expr" $ do
@@ -159,7 +162,7 @@ simpleInstrTest = testCase "Test simple instructions (w/o allocation)" $ do
                     loadStackAddrAt 1 3
 
                     forM_ program $ \instr ->
-                        compileInstr nameMap instr
+                        compileInstr def nameMap instr
 
                     -- return value at stack pos 3
                     mov rax (addrStackPos 3)
@@ -184,7 +187,7 @@ simpleInstrTest = testCase "Test simple instructions (w/o allocation)" $ do
                     loadStackAddrAt 2 4
 
                     forM_ program $ \instr ->
-                        compileInstr nameMap instr
+                        compileInstr def nameMap instr
 
                     -- return value at stack pos 3
                     mov rax (addrStackPos 4)
@@ -213,7 +216,7 @@ simpleInstrTest = testCase "Test simple instructions (w/o allocation)" $ do
                     loadStackAddrAt 2 4
 
                     forM_ program $ \instr ->
-                        compileInstr nameMap instr
+                        compileInstr def nameMap instr
 
                     -- return value at stack pos 3
                     mov rax (addrStackPos 3)
@@ -241,7 +244,7 @@ allocateFreeTest = testCase "Test allocation and free'ing" $ do
 
 
                     forM_ program $ \instr ->
-                        compileInstr nameMap instr
+                        compileInstr def nameMap instr
 
                     -- return value at stack pos 1
                     mov rax (addrStackPos 3)
@@ -264,7 +267,7 @@ allocateFreeTest = testCase "Test allocation and free'ing" $ do
 
 
                     forM_ program $ \instr ->
-                        compileInstr nameMap instr
+                        compileInstr def nameMap instr
 
                     -- return value at stack pos 1
                     mov rax (addrStackPos 3)
@@ -272,6 +275,30 @@ allocateFreeTest = testCase "Test allocation and free'ing" $ do
 
     val <- liftIO $ (X86.compile code :: IO Word64)
     val @?= 327
+
+
+simpleJumpTest :: TestTree
+simpleJumpTest = testCase "Test simple jumps" $ do
+    let program = mkProg $ do
+            jump "inexistent_label"
+
+            "existing_label" ~> do
+                return ()
+
+    void (compile program) @?= Left (UndefinedLabels ["inexistent_label"])
+
+    let program = mkProg $ do
+            jump "existing_label"
+
+            "existing_label" ~> do
+                return ()
+
+    void (compile program) @?= Right ()
+
+
+    let Right code = compile program
+    val <- liftIO $ (X86.compile code :: IO ())
+    val `seq` 0 @?= 0  -- just to check that there are no exception
 
 
 

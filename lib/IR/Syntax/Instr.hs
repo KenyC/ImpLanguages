@@ -76,7 +76,7 @@ instance (Show label) => Pretty (IRInstr label) where
     prettyShowPrec (Is name addr) = ((prettyShow name) ++ " := " ++ (prettyShow addr), 10)
     prettyShowPrec (Free expr)       = ("free " ++ (prettyShow expr), 10)
     prettyShowPrec (Set  addr value) = ((prettyShow addr) ++ " *= " ++ (prettyShow value), 10)
-    prettyShowPrec (JComp op expr1 expr2 label) = ("jump if (" ++ (prettyShow expr1) ++") " ++ prettyShow op ++ "(" ++ (prettyShow expr2) ++ ") " ++ (show label), 10)  
+    prettyShowPrec (JComp op expr1 expr2 label) = ("jump if (" ++ (prettyShow expr1) ++") " ++ prettyShow op ++ " (" ++ (prettyShow expr2) ++ ") " ++ (show label), 10)  
     prettyShowPrec (Loc _ instr) = prettyShowPrec instr
 
 

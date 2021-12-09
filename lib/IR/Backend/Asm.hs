@@ -3,24 +3,57 @@ module IR.Backend.Asm where
 import Control.Monad
 import Data.Default
 import Data.Word
-import Data.Map  (Map)
-import Data.List (nub)
+import Data.Map    (Map)
+import Data.Maybe  (fromJust)
+import Data.List
 import qualified Data.Map as Map
 
 import CodeGen.X86
+import CodeGen.X86.Asm
+import CodeGen.X86.CodeGen
+import CodeGen.X86.CallConv
 
 import IR.Syntax
 import IR.Backend.Asm.RunCode
+import qualified IR.Backend.Static as Static
 
--- compile :: 
---     ( Default label
---     , Ord     label
---     , Show    label)
---  => Module label 
---  -> Maybe Code
--- compile mainModule = do
---     scope <- Map.lookup def mainModule 
---     return $ forM_ scope compileInstr
+data CompileError label
+    = NoDefScope
+    | UndefinedLabels [label]
+    deriving (Show, Eq)
+compile :: 
+    ( Default label
+    , Ord     label
+    , Show    label)
+ => Module label 
+ -> Either (CompileError label) Code
+compile mainModule = do
+    when (not $ Map.member def mainModule) $ 
+        Left NoDefScope 
+    Static.checkLink mainModule $ Left . UndefinedLabels
+
+    let unorderedScopes   = Map.toList mainModule
+
+    -- placing 'def' first
+    let (defScope:_, otherScopes) = partition ((== def) . fst) unorderedScopes
+    let scopes = defScope:otherScopes
+
+    let jumpMap  = JumpMap $ fst <$> scopes
+    let nameMap  = makeNameMap mainModule
+
+    return $ do
+        prologue
+        reserveSpaceForNames nameMap
+
+        forM_ scopes $ \(_, scope) -> do
+            -- start label
+            mkCodeLine Label_
+            mapM_ (compileInstr jumpMap nameMap) scope
+
+            -- if the scope is over without jumps prepare to return
+            epilogue
+            ret
+
 
 makeNameMap :: Module label -> NameMap
 makeNameMap mainModule = 
@@ -62,31 +95,55 @@ reserveSpaceForNames nameMap = do
 --     , Monad
 --     , )
 
-compileInstr :: NameMap -> IRInstr label -> Code
+compileInstr :: (Eq label) => JumpMap label -> NameMap -> IRInstr label -> Code
 -- compileInstr = _
-compileInstr nameMap (Set exprAddr expr) = do
+compileInstr _ nameMap (Set exprAddr expr) = do
     compileExprAddr nameMap exprAddr
     push rax
     compileExpr nameMap expr
     pop rcx
     mov (addr64 rcx) rax
 
-compileInstr nameMap (Is name exprAddr) = do
+compileInstr _ nameMap (Is name exprAddr) = do
     compileExprAddr nameMap exprAddr
     let stackPos = nameMap Map.! name
     mov (addrStackPos stackPos) rax
 
-compileInstr nameMap (Free exprAddr) = do
+compileInstr _ nameMap (Free exprAddr) = do
     compileExpr nameMap exprAddr
     mov arg1 rax -- move address to #1 arg (rdi on Linux)
     callFree rcx
 
-compileInstr nameMap (JComp _ _ _ _) = _JComp
-compileInstr nameMap (Loc _ instr) = compileInstr nameMap instr
+compileInstr jMap nameMap (JComp op expr1 expr2 label) = do
+    compileExpr nameMap expr1
+    push rax -- saving result on stack
+    compileExpr nameMap expr2
+    pop rcx  -- popping first expression results from stack
+
+    cmp rcx rax
+    toAsmCompOp op $ 
+        fromJust $
+        jmapLookup label jMap
 
 
-type StackPos = Word64
-type NameMap  = Map IRName StackPos
+
+compileInstr jMap nameMap (Loc _ instr) = compileInstr jMap nameMap instr
+
+
+type StackPos  = Word64
+type NameMap   = Map IRName StackPos
+
+newtype JumpMap l = 
+    JumpMap {_unwrapJMap :: [l]}
+    deriving (Eq, Show)
+instance (Default l) => Default (JumpMap l) where
+    def = JumpMap [def]
+jmapLookup :: (Eq l) => l -> JumpMap l -> Maybe Label
+jmapLookup key jmap = fmap Label $ elemIndex key $ _unwrapJMap jmap
+
+makeJumpMap :: Module label -> JumpMap label
+makeJumpMap = JumpMap . Map.keys
+
 
 compileExprInt :: NameMap -> IRExpr 'IntTy -> Code
 compileExprInt _ (Cst x)   = mov rax (fromIntegral x)
@@ -151,6 +208,13 @@ selfContainedExpr nameMap expr =
 toAsmOp :: IRBinOp -> Operand 'RW 'S64 -> Operand r 'S64 -> Code
 toAsmOp Add = add
 toAsmOp Sub = sub
+
+
+toAsmCompOp :: IRCompOp -> Label -> Code
+toAsmCompOp Eq     = j E 
+toAsmCompOp NEq    = j NE
+toAsmCompOp More   = j G
+toAsmCompOp MoreEq = j NLE
 
 
 addrStackPos :: StackPos -> Operand r 'S64

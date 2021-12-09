@@ -31,6 +31,7 @@ library
                        IR.Backend.Haskell.Evaluate
                        IR.Backend.Haskell.Runtime
                        IR.Backend.Haskell.State
+                       IR.Backend.Static
                        Pretty
   hs-source-dirs:      lib
   -- other-extensions:
@@ -91,6 +92,7 @@ Test-Suite main-test
                         Test.IR.Backend.Haskell
                         Test.IR.Backend.Asm
                         Test.IR.Backend.Asm.RunCode
+                        Test.IR.Backend.Static
                         Test.Pretty
     ghc-options:   -Wunused-imports
                    -Wincomplete-patterns 
