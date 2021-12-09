@@ -17,10 +17,14 @@ import IR.Syntax
 import IR.Backend.Asm.RunCode
 import qualified IR.Backend.Static as Static
 
+posOutValue :: StackPos
+posOutValue = 1
+
 data CompileError label
     = NoDefScope
     | UndefinedLabels [label]
     deriving (Show, Eq)
+
 compile :: 
     ( Default label
     , Ord     label
@@ -41,6 +45,11 @@ compile mainModule = do
     let jumpMap  = JumpMap $ fst <$> scopes
     let nameMap  = makeNameMap mainModule
 
+    let leaveProcedure = do
+            mov rax (addrStackPos posOutValue)
+            epilogue 
+            ret
+
     return $ do
         prologue
         reserveSpaceForNames nameMap
@@ -51,14 +60,14 @@ compile mainModule = do
             mapM_ (compileInstr jumpMap nameMap) scope
 
             -- if the scope is over without jumps prepare to return
-            epilogue
-            ret
+            leaveProcedure
 
 
 makeNameMap :: Module label -> NameMap
 makeNameMap mainModule = 
-    Map.fromList   $ 
-    flip zip [1..] $! -- not sure, seems like the best way to get early calculation of this massive thunk 
+    Map.fromList   $
+    -- all var's are stored 2 8-bytes after rbp, pos 1 is reserved for out value 
+    flip zip [2..] $! -- not sure, seems like the best way to get early calculation of this massive thunk 
     nub            $ do
         scope <- Map.elems mainModule
         instr <- scope
@@ -67,6 +76,7 @@ makeNameMap mainModule =
             collectNamesInstr (Set expr1 expr2)        = collectNamesExpr expr1 ++ collectNamesExpr expr2 
             collectNamesInstr (Free expr1)             = collectNamesExpr expr1
             collectNamesInstr (Is name expr1)          = name:(collectNamesExpr expr1)
+            collectNamesInstr (Out expr1)              = collectNamesExpr expr1
             collectNamesInstr (JComp _ expr1 expr2 _)  = collectNamesExpr expr1 ++ collectNamesExpr expr2 
             collectNamesInstr (Loc _ instr)            = collectNamesInstr instr
 
@@ -108,6 +118,10 @@ compileInstr _ nameMap (Is name exprAddr) = do
     compileExprAddr nameMap exprAddr
     let stackPos = nameMap Map.! name
     mov (addrStackPos stackPos) rax
+
+compileInstr _ nameMap (Out exprVal) = do
+    compileExpr nameMap exprVal
+    mov (addrStackPos posOutValue) rax
 
 compileInstr _ nameMap (Free exprAddr) = do
     compileExpr nameMap exprAddr

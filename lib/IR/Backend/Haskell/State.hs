@@ -29,6 +29,7 @@ data RuntimeState label = RuntimeState  {
    , _nameMap      :: NameMap
    , _mainModule   :: Module label
    , _logger       :: [String]
+   , _outValue     :: Maybe IRInt
    , _nextInstr    :: [IRInstr label]
 } 
 -- deriving instance (Show label) => Show (RuntimeState label)
@@ -41,6 +42,7 @@ initialState moduleProg = RuntimeState {
    , _nameMap      = Map.empty
    , _mainModule   = moduleProg
    , _logger       = []
+   , _outValue     = Nothing
    , _nextInstr    = []
 }
 

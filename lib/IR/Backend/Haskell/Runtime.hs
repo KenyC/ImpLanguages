@@ -48,6 +48,11 @@ runtime (Is name addrExpr) = do
     fullAddr <- evaluate addrExpr
     modifying nameMap $ Map.insert name fullAddr
 
+    
+runtime (Out intExpr) = do
+    value <- evaluate intExpr
+    assign (outValue . _Just) value
+
 
 runtime (Free addrExpr)     = do
     fullAddr@(IRAddrOffset addr offset) <- evaluateAddr addrExpr

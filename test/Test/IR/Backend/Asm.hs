@@ -145,7 +145,7 @@ nameMapTest = testCase "Make name map test" $ do
     length (Map.keys nameMap) @?= length (nub $ Map.elems nameMap) 
 
     -- minimal
-    maximum nameMap @?= (fromIntegral $ Map.size nameMap) 
+    maximum nameMap @?= (fromIntegral $ Map.size nameMap) + 1 
 
 simpleInstrTest :: TestTree
 simpleInstrTest = testCase "Test simple instructions (w/o allocation)" $ do

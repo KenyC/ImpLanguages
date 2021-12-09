@@ -29,6 +29,11 @@ instance Pretty IRCompOp where
 data IRInstr label where
     Free :: IRExpr 'AddrTy -> IRInstr label 
 
+    -- returns value
+    Out :: 
+         IRExpr 'IntTy 
+      -> IRInstr label
+
     Is ::
          IRName
       -> IRExpr 'AddrTy 
@@ -55,6 +60,8 @@ data IRInstr label where
       -> IRInstr label
       -> IRInstr label
 
+
+
 deriving instance (Show label) => Show (IRInstr label)
 
 instance LocStrippable (IRInstr label) where
@@ -77,7 +84,9 @@ instance (Show label) => Pretty (IRInstr label) where
     prettyShowPrec (Free expr)       = ("free " ++ (prettyShow expr), 10)
     prettyShowPrec (Set  addr value) = ((prettyShow addr) ++ " *= " ++ (prettyShow value), 10)
     prettyShowPrec (JComp op expr1 expr2 label) = ("jump if (" ++ (prettyShow expr1) ++") " ++ prettyShow op ++ " (" ++ (prettyShow expr2) ++ ") " ++ (show label), 10)  
+    prettyShowPrec (Out expr) = ("out " ++ prettyShow expr, 10)
     prettyShowPrec (Loc _ instr) = prettyShowPrec instr
+
 
 
 

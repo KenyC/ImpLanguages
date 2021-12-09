@@ -7,7 +7,6 @@ import qualified Data.Map as Map
 
 import qualified IR.Backend.Static as Static
 import IR.Backend.Haskell.State
-import IR.Syntax
 
 checkLeaks :: Runtime label a -> Runtime label a
 checkLeaks program = do
